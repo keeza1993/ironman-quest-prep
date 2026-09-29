@@ -1,0 +1,17 @@
+.gradle
+build
+.idea/
+.project
+.settings/
+.classpath
+nbactions.xml
+nb-configuration.xml
+nbproject/
+*.class
+# Local exports, caches and credentials
+*.zip
+*.log
+credentials.properties
+.env
+.env.*
+out/
