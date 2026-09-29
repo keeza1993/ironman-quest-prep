@@ -2,7 +2,13 @@
 
 Prepared 29 September 2026. This is a source release candidate, not an approved or published Plugin Hub release.
 
-## Validation completed
+## Current submission update
+
+The owner authorized including the new UI and source-size reduction in the existing PR, https://github.com/runelite/plugin-hub/pull/17331. Source repository: https://github.com/keeza1993/ironman-quest-prep.git.
+
+Clean offline build and 54 tests passed after the reduction. An integrity test verifies every field and row order across 1,129 items, 97 advisories and 61 groups against the previous generated data. The owner approved the new appearance in the development client; other manual tests below remain unchecked. The bot's new count and maintainer approval still need confirmation.
+
+## Original preparation validation
 
 - Fixed the nonexistent plugin class in runelite-plugin.properties.
 - Renamed the entry class and config class to QuestPrepPlugin / QuestPrepConfig.
@@ -45,12 +51,12 @@ Project instructions require user-run in-game testing; the agent has not perform
 
 ## Publishing
 
-The baseline remote is https://github.com/keeza1993/imth3keeza0.git. Confirm that this is the public repository you intend to use. No remote was changed or pushed during preparation.
+The confirmed public source repository is https://github.com/keeza1993/ironman-quest-prep.git. Update the existing initial-release PR while it is open.
 
 1. Publish the tested candidate source to your chosen public repository.
 2. Record the full 40-character commit hash of that published source.
 3. Fork https://github.com/runelite/plugin-hub and add plugins/ironman-quest-prep with two lines:
-   repository=https://github.com/keeza1993/imth3keeza0.git
+   repository=https://github.com/keeza1993/ironman-quest-prep.git
    commit=THE_ACTUAL_PUBLISHED_40_CHARACTER_COMMIT_HASH
 4. Use hub-pr-description.md as the submission description. Update the manual testing statement with your actual results.
 5. Open the pull request, check its build/check results and address reviewer feedback.

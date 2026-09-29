@@ -1,3 +1,5 @@
+> Superseded: the owner approved including these UI changes in the initial submission on 29 September 2026. They are no longer reserved for a future update. The review-size fix is included too; check the current PR for validation status.
+
 # First update preview — 29 September 2026
 
 Local branch: codex/first-update-ui. Nothing from this update has been pushed.
