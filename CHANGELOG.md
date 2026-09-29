@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.1 — performance update
+
+- Cache ground-item labels instead of scanning all requirements for every frame lookup.
+- Batch ownership-triggered checklist/route refreshes to one game-tick update.
+- Cache immutable requirement metadata and reuse skill plans when their inputs are unchanged.
+- Avoid rebuilding hidden sidebar contents and unchanged skill views.
+- 58 automated tests pass, including cache invalidation and original data integrity checks.
+- Released for affected users to evaluate; no claim of verified FPS improvement on older hardware.
 ## 0.1.0 — initial release candidate
 
 - Quest item checklist with reusable-tool quantities and known source unlock filters.
