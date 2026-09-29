@@ -38,65 +38,46 @@ import net.runelite.client.ui.overlay.OverlayUtil;
 import net.runelite.client.ui.overlay.worldmap.WorldMapPoint;
 import net.runelite.client.ui.overlay.worldmap.WorldMapPointManager;
 
-public class RouteGuidanceOverlay extends Overlay
-{
+public class RouteGuidanceOverlay extends Overlay {
     private final Map<Integer, Set<NPC>> trackedNpcs = new HashMap<>();
 
-    void trackNpc(NPC npc)
-    {
+    void trackNpc(NPC npc) {
         untrackNpc(npc);
         trackedNpcs.computeIfAbsent(npc.getId(), id -> new HashSet<>()).add(npc);
     }
 
-    void untrackNpc(NPC npc)
-    {
+    void untrackNpc(NPC npc) {
         trackedNpcs.values().forEach(npcs -> npcs.remove(npc));
         trackedNpcs.values().removeIf(Set::isEmpty);
     }
 
-    void clearNpcs() { trackedNpcs.clear(); }
+    void clearNpcs() {
+        trackedNpcs.clear();
+    }
 
-    void seedNpcs()
-    {
+    void seedNpcs() {
         clearNpcs();
         WorldView view = client.getTopLevelWorldView();
         if (view != null) for (NPC npc : view.npcs()) trackNpc(npc);
     }
 
-    private static final Color PINK =
-            new Color(
-                    255,
-                    20,
-                    147
-            );
+    private static final Color PINK = new Color(255, 20, 147);
 
-    private static final Color PINK_FILL =
-            new Color(
-                    255,
-                    20,
-                    147,
-                    45
-            );
+    private static final Color PINK_FILL = new Color(255, 20, 147, 45);
 
     private static final Color ROUTE_BLUE = new Color(95, 180, 255);
 
-    private static final Color WHITE =
-            Color.WHITE;
+    private static final Color WHITE = Color.WHITE;
 
-    private static final int WORLD_MAP_MARKER_WIDTH =
-            24;
+    private static final int WORLD_MAP_MARKER_WIDTH = 24;
 
-    private static final int WORLD_MAP_MARKER_HEIGHT =
-            30;
+    private static final int WORLD_MAP_MARKER_HEIGHT = 30;
 
-    private static final int MINIMAP_ARROW_LENGTH =
-            13;
+    private static final int MINIMAP_ARROW_LENGTH = 13;
 
-    private static final int MINIMAP_ARROW_HALF_WIDTH =
-            6;
+    private static final int MINIMAP_ARROW_HALF_WIDTH = 6;
 
-    private static final BufferedImage WORLD_MAP_MARKER_IMAGE =
-            createWorldMapMarkerImage();
+    private static final BufferedImage WORLD_MAP_MARKER_IMAGE = createWorldMapMarkerImage();
 
     private final Client client;
     private final QuestPrepConfig config;
@@ -113,30 +94,18 @@ public class RouteGuidanceOverlay extends Overlay
 
     @Inject
     RouteGuidanceOverlay(
-            Client client,
-            QuestPrepConfig config,
-            WorldMapPointManager worldMapPointManager)
-    {
-        this.client =
-                client;
+            Client client, QuestPrepConfig config, WorldMapPointManager worldMapPointManager) {
+        this.client = client;
 
-        this.config =
-                config;
+        this.config = config;
 
-        this.worldMapPointManager =
-                worldMapPointManager;
+        this.worldMapPointManager = worldMapPointManager;
 
-        setPosition(
-                OverlayPosition.DYNAMIC
-        );
+        setPosition(OverlayPosition.DYNAMIC);
 
-        setLayer(
-                OverlayLayer.ABOVE_SCENE
-        );
+        setLayer(OverlayLayer.ABOVE_SCENE);
 
-        setPriority(
-                PRIORITY_HIGH
-        );
+        setPriority(PRIORITY_HIGH);
     }
 
     /*
@@ -145,39 +114,27 @@ public class RouteGuidanceOverlay extends Overlay
      * =====================================================
      */
 
-    public void setActiveStep(
-            GatheringStep activeStep)
-    {
-        this.activeStep =
-                activeStep;
-        if (activeStep != null && config.routeGuidance())
-        {
+    public void setActiveStep(GatheringStep activeStep) {
+        this.activeStep = activeStep;
+        if (activeStep != null && config.routeGuidance()) {
             syncWorldMapPoint(activeStep.getTarget(), activeStep.getTarget().getWorldPoint());
-        }
-        else
-        {
+        } else {
             clearWorldMapPoint();
         }
     }
 
-    public void clearActiveStep()
-    {
-        activeStep =
-                null;
+    public void clearActiveStep() {
+        activeStep = null;
 
         clearWorldMapPoint();
     }
 
-    public GatheringStep getActiveStep()
-    {
+    public GatheringStep getActiveStep() {
         return activeStep;
     }
 
-    public void setBankTracker(
-            BankTracker bankTracker)
-    {
-        this.bankTracker =
-                bankTracker;
+    public void setBankTracker(BankTracker bankTracker) {
+        this.bankTracker = bankTracker;
     }
 
     /*
@@ -191,225 +148,123 @@ public class RouteGuidanceOverlay extends Overlay
      * minimap guidance.
      */
 
-    private void syncWorldMapPoint(
-            GatheringTarget target,
-            WorldPoint targetWorldPoint)
-    {
-        if (target == null
-                || targetWorldPoint == null
-                || activeStep == null)
-        {
+    private void syncWorldMapPoint(GatheringTarget target, WorldPoint targetWorldPoint) {
+        if (target == null || targetWorldPoint == null || activeStep == null) {
             clearWorldMapPoint();
 
             return;
         }
 
-        String tooltip =
-                buildWorldMapTooltip(
-                        target
-                );
+        String tooltip = buildWorldMapTooltip(target);
 
         if (activeWorldMapPoint != null
-                && targetWorldPoint.equals(
-                activeWorldMapPoint.getWorldPoint()
-        )
-                && tooltip.equals(
-                activeWorldMapPoint.getTooltip()
-        ))
-        {
+                && targetWorldPoint.equals(activeWorldMapPoint.getWorldPoint())
+                && tooltip.equals(activeWorldMapPoint.getTooltip())) {
             return;
         }
 
         clearWorldMapPoint();
 
-        WorldMapPoint mapPoint =
-                new WorldMapPoint(
-                        targetWorldPoint,
-                        WORLD_MAP_MARKER_IMAGE
-                );
+        WorldMapPoint mapPoint = new WorldMapPoint(targetWorldPoint, WORLD_MAP_MARKER_IMAGE);
 
         /*
          * Anchor the pointed end of the pink marker to the
          * destination tile rather than centring the whole
          * image over it.
          */
-        mapPoint.setImagePoint(
-                new Point(
-                        WORLD_MAP_MARKER_WIDTH / 2,
-                        WORLD_MAP_MARKER_HEIGHT - 2
-                )
-        );
+        mapPoint.setImagePoint(new Point(WORLD_MAP_MARKER_WIDTH / 2, WORLD_MAP_MARKER_HEIGHT - 2));
 
-        mapPoint.setTooltip(
-                tooltip
-        );
+        mapPoint.setTooltip(tooltip);
 
-        mapPoint.setName(
-                "Ironman Quest Prep - "
-                        + activeStep.getItemName()
-        );
+        mapPoint.setName("Ironman Quest Prep - " + activeStep.getItemName());
 
-        mapPoint.setJumpOnClick(
-                true
-        );
+        mapPoint.setJumpOnClick(true);
 
-        mapPoint.setTarget(
-                targetWorldPoint
-        );
+        mapPoint.setTarget(targetWorldPoint);
 
         /*
          * Keep a directional marker visible at the edge of
          * the world map when the destination itself is
          * outside the current map viewport.
          */
-        mapPoint.setSnapToEdge(
-                true
-        );
+        mapPoint.setSnapToEdge(true);
 
-        worldMapPointManager.add(
-                mapPoint
-        );
+        worldMapPointManager.add(mapPoint);
 
-        activeWorldMapPoint =
-                mapPoint;
+        activeWorldMapPoint = mapPoint;
     }
 
-    private void clearWorldMapPoint()
-    {
-        if (activeWorldMapPoint == null)
-        {
+    private void clearWorldMapPoint() {
+        if (activeWorldMapPoint == null) {
             return;
         }
 
-        worldMapPointManager.remove(
-                activeWorldMapPoint
-        );
+        worldMapPointManager.remove(activeWorldMapPoint);
 
-        activeWorldMapPoint =
-                null;
+        activeWorldMapPoint = null;
     }
 
-    private String buildWorldMapTooltip(
-            GatheringTarget target)
-    {
-        String itemName =
-                activeStep == null
-                        ? ""
-                        : activeStep.getItemName();
+    private String buildWorldMapTooltip(GatheringTarget target) {
+        String itemName = activeStep == null ? "" : activeStep.getItemName();
 
-        int quantity =
-                activeStep == null
-                        ? 0
-                        : activeStep.getQuantityNeeded();
+        int quantity = activeStep == null ? 0 : activeStep.getQuantityNeeded();
 
-        StringBuilder tooltip =
-                new StringBuilder(
-                        "Ironman Quest Prep"
-                );
+        StringBuilder tooltip = new StringBuilder("Ironman Quest Prep");
 
-        if (itemName != null
-                && !itemName.trim().isEmpty())
-        {
-            tooltip
-                    .append("<br>")
+        if (itemName != null && !itemName.trim().isEmpty()) {
+            tooltip.append("<br>")
                     .append("Need ")
                     .append(quantity)
                     .append(" x ")
                     .append(itemName.trim());
         }
 
-        if (target != null)
-        {
-            tooltip
-                    .append("<br>")
-                    .append(target.getDisplayText());
+        if (target != null) {
+            tooltip.append("<br>").append(target.getDisplayText());
         }
 
         return tooltip.toString();
     }
 
-    private static BufferedImage createWorldMapMarkerImage()
-    {
+    private static BufferedImage createWorldMapMarkerImage() {
         BufferedImage image =
                 new BufferedImage(
                         WORLD_MAP_MARKER_WIDTH,
                         WORLD_MAP_MARKER_HEIGHT,
-                        BufferedImage.TYPE_INT_ARGB
-                );
+                        BufferedImage.TYPE_INT_ARGB);
 
-        Graphics2D graphics =
-                image.createGraphics();
+        Graphics2D graphics = image.createGraphics();
 
         graphics.setRenderingHint(
-                RenderingHints.KEY_ANTIALIASING,
-                RenderingHints.VALUE_ANTIALIAS_ON
-        );
+                RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         /*
          * Marker tail.
          */
         Polygon tail =
                 new Polygon(
-                        new int[]
-                                {
-                                        7,
-                                        WORLD_MAP_MARKER_WIDTH / 2,
-                                        17
-                                },
-                        new int[]
-                                {
-                                        17,
-                                        WORLD_MAP_MARKER_HEIGHT - 2,
-                                        17
-                                },
-                        3
-                );
+                        new int[] {7, WORLD_MAP_MARKER_WIDTH / 2, 17},
+                        new int[] {17, WORLD_MAP_MARKER_HEIGHT - 2, 17},
+                        3);
 
-        graphics.setColor(
-                PINK
-        );
+        graphics.setColor(PINK);
 
-        graphics.fill(
-                tail
-        );
+        graphics.fill(tail);
 
         /*
          * Main marker circle.
          */
-        graphics.fillOval(
-                2,
-                2,
-                20,
-                20
-        );
+        graphics.fillOval(2, 2, 20, 20);
 
-        graphics.setColor(
-                Color.BLACK
-        );
+        graphics.setColor(Color.BLACK);
 
-        graphics.setStroke(
-                new BasicStroke(
-                        2.0f
-                )
-        );
+        graphics.setStroke(new BasicStroke(2.0f));
 
-        graphics.drawOval(
-                2,
-                2,
-                20,
-                20
-        );
+        graphics.drawOval(2, 2, 20, 20);
 
-        graphics.setColor(
-                WHITE
-        );
+        graphics.setColor(WHITE);
 
-        graphics.fillOval(
-                8,
-                8,
-                8,
-                8
-        );
+        graphics.fillOval(8, 8, 8, 8);
 
         graphics.dispose();
 
@@ -423,39 +278,30 @@ public class RouteGuidanceOverlay extends Overlay
      */
 
     @Override
-    public Dimension render(
-            Graphics2D graphics)
-    {
-        if (!config.routeGuidance())
-        {
+    public Dimension render(Graphics2D graphics) {
+        if (!config.routeGuidance()) {
             clearWorldMapPoint();
 
             return null;
         }
 
-        if (activeStep == null)
-        {
+        if (activeStep == null) {
             clearWorldMapPoint();
 
             return null;
         }
 
-        GatheringTarget target =
-                activeStep.getTarget();
+        GatheringTarget target = activeStep.getTarget();
 
-        if (target == null
-                || !target.isNavigable())
-        {
+        if (target == null || !target.isNavigable()) {
             clearWorldMapPoint();
 
             return null;
         }
 
-        WorldPoint targetWorldPoint =
-                navigationPoint(target);
+        WorldPoint targetWorldPoint = navigationPoint(target);
 
-        if (targetWorldPoint == null)
-        {
+        if (targetWorldPoint == null) {
             clearWorldMapPoint();
 
             return null;
@@ -466,59 +312,33 @@ public class RouteGuidanceOverlay extends Overlay
          * the same target used by the HUD/minimap/scene
          * guidance.
          */
-        syncWorldMapPoint(
-                target,
-                targetWorldPoint
-        );
+        syncWorldMapPoint(target, targetWorldPoint);
 
         /*
          * HUD stays visible even when the destination is
          * outside the currently loaded scene.
          */
-        drawRouteHud(
-                graphics,
-                target,
-                targetWorldPoint
-        );
+        drawRouteHud(graphics, target, targetWorldPoint);
 
-        if (client.isInInstancedRegion())
-        {
+        if (client.isInInstancedRegion()) {
             return null;
         }
 
-        LocalPoint localPoint =
-                null;
+        LocalPoint localPoint = null;
 
-        if (targetWorldPoint.getPlane()
-                == client.getPlane())
-        {
+        if (targetWorldPoint.getPlane() == client.getPlane()) {
             localPoint =
-                    LocalPoint.fromWorld(
-                            client,
-                            targetWorldPoint.getX(),
-                            targetWorldPoint.getY()
-                    );
+                    LocalPoint.fromWorld(client, targetWorldPoint.getX(), targetWorldPoint.getY());
         }
 
         /*
          * Highlight actual NPC when it is loaded.
          */
-        if (target.getType()
-                == GatheringTarget.TargetType.NPC
-                && target.hasTargetId())
-        {
-            NPC npc =
-                    findTargetNpc(
-                            target
-                    );
+        if (target.getType() == GatheringTarget.TargetType.NPC && target.hasTargetId()) {
+            NPC npc = findTargetNpc(target);
 
-            if (npc != null)
-            {
-                drawNpcHighlight(
-                        graphics,
-                        npc,
-                        target
-                );
+            if (npc != null) {
+                drawNpcHighlight(graphics, npc, target);
 
                 return null;
             }
@@ -527,16 +347,11 @@ public class RouteGuidanceOverlay extends Overlay
         /*
          * Fallback scene marker for areas, objects and tiles.
          */
-        if (localPoint == null)
-        {
+        if (localPoint == null) {
             return null;
         }
 
-        drawTargetTile(
-                graphics,
-                localPoint,
-                target
-        );
+        drawTargetTile(graphics, localPoint, target);
 
         return null;
     }
@@ -548,62 +363,63 @@ public class RouteGuidanceOverlay extends Overlay
      */
 
     /** Called only by the ABOVE_WIDGETS minimap overlay. */
-    void renderMinimap(Graphics2D graphics)
-    {
-        if (!config.routeGuidance() || activeStep == null || client.getLocalPlayer() == null)
-        {
+    void renderMinimap(Graphics2D graphics) {
+        if (!config.routeGuidance() || activeStep == null || client.getLocalPlayer() == null) {
             return;
         }
         GatheringTarget target = activeStep.getTarget();
-        if (target == null || !target.isNavigable() || client.isInInstancedRegion())
-        {
+        if (target == null || !target.isNavigable() || client.isInInstancedRegion()) {
             return;
         }
         Rectangle bounds = minimapBounds();
         if (bounds == null) return;
         Graphics2D minimap = (Graphics2D) graphics.create();
-        try
-        {
+        try {
             double diameter = Math.min(bounds.width, bounds.height);
-            minimap.clip(new Ellipse2D.Double(bounds.getCenterX() - diameter / 2,
-                    bounds.getCenterY() - diameter / 2, diameter, diameter));
-            minimap.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,
-                    minimapArrowOpacity(System.nanoTime() / 1_000_000L, config.flashMinimapArrow())));
+            minimap.clip(
+                    new Ellipse2D.Double(
+                            bounds.getCenterX() - diameter / 2,
+                            bounds.getCenterY() - diameter / 2,
+                            diameter,
+                            diameter));
+            minimap.setComposite(
+                    AlphaComposite.getInstance(
+                            AlphaComposite.SRC_OVER,
+                            minimapArrowOpacity(
+                                    System.nanoTime() / 1_000_000L, config.flashMinimapArrow())));
             WorldPoint destination = navigationPoint(target);
             LocalPoint local = LocalPoint.fromWorld(client, destination.getX(), destination.getY());
             if (local == null || !drawMinimapMarker(minimap, local))
                 drawDistantMinimapArrow(minimap, destination);
-        }
-        finally
-        {
+        } finally {
             minimap.dispose();
         }
     }
 
-    static float minimapArrowOpacity(long milliseconds, boolean flash)
-    {
+    static float minimapArrowOpacity(long milliseconds, boolean flash) {
         if (!flash) return 1f;
         // One smooth pulse per second; never disappear completely.
         double phase = Math.floorMod(milliseconds, 1000L) / 1000.0;
         return (float) (0.7 + 0.3 * Math.cos(phase * 2 * Math.PI));
     }
-    private WorldPoint navigationPoint(GatheringTarget target)
-    {
+
+    private WorldPoint navigationPoint(GatheringTarget target) {
         NPC npc = target.getType() == GatheringTarget.TargetType.NPC ? findTargetNpc(target) : null;
         return npc == null ? target.getWorldPoint() : npc.getWorldLocation();
     }
 
-    private boolean drawMinimapMarker(Graphics2D graphics, LocalPoint localPoint)
-    {
+    private boolean drawMinimapMarker(Graphics2D graphics, LocalPoint localPoint) {
         Point destination = Perspective.localToMinimap(client, localPoint);
         if (!insideMinimap(destination, minimapBounds(), 18)) return false;
-        Point origin = Perspective.localToMinimap(client, client.getLocalPlayer().getLocalLocation());
+        Point origin =
+                Perspective.localToMinimap(client, client.getLocalPlayer().getLocalLocation());
         if (origin == null) return false;
         if (origin.getX() == destination.getX() && origin.getY() == destination.getY())
             origin = new Point(destination.getX(), destination.getY() - 16);
         drawMinimapArrowHead(graphics, origin, destination);
         return true;
     }
+
     /*
      * =====================================================
      * DISTANT MINIMAP ARROW
@@ -617,37 +433,40 @@ public class RouteGuidanceOverlay extends Overlay
      * Using Perspective.localToMinimap for the proxy means RuneLite handles
      * minimap rotation and zoom. We never need to duplicate that maths here.
      */
-    private Rectangle minimapBounds()
-    {
-        int id = !client.isResized() ? InterfaceID.Toplevel.MINIMAP
-                : client.getVarbitValue(VarbitID.RESIZABLE_STONE_ARRANGEMENT) == 1
-                ? InterfaceID.ToplevelPreEoc.MINIMAP : InterfaceID.ToplevelOsrsStretch.MINIMAP;
+    private Rectangle minimapBounds() {
+        int id =
+                !client.isResized()
+                        ? InterfaceID.Toplevel.MINIMAP
+                        : client.getVarbitValue(VarbitID.RESIZABLE_STONE_ARRANGEMENT) == 1
+                                ? InterfaceID.ToplevelPreEoc.MINIMAP
+                                : InterfaceID.ToplevelOsrsStretch.MINIMAP;
         Widget widget = client.getWidget(id);
         return widget == null || widget.isHidden() ? null : widget.getBounds();
     }
 
-    static boolean insideMinimap(Point point, Rectangle bounds, int inset)
-    {
+    static boolean insideMinimap(Point point, Rectangle bounds, int inset) {
         if (point == null || bounds == null) return false;
         double radius = Math.min(bounds.width, bounds.height) / 2.0 - inset;
-        return radius > 0 && Math.hypot(point.getX() - bounds.getCenterX(),
-                point.getY() - bounds.getCenterY()) <= radius;
+        return radius > 0
+                && Math.hypot(
+                                point.getX() - bounds.getCenterX(),
+                                point.getY() - bounds.getCenterY())
+                        <= radius;
     }
 
-    static Point minimapEdgePoint(Point origin, Point projected, Rectangle bounds)
-    {
+    static Point minimapEdgePoint(Point origin, Point projected, Rectangle bounds) {
         if (origin == null || projected == null || bounds == null) return null;
         double dx = projected.getX() - origin.getX();
         double dy = projected.getY() - origin.getY();
         double length = Math.hypot(dx, dy);
         double radius = Math.min(bounds.width, bounds.height) / 2.0 - 10;
         if (length == 0 || radius <= 0) return null;
-        return new Point((int) Math.round(bounds.getCenterX() + dx / length * radius),
+        return new Point(
+                (int) Math.round(bounds.getCenterX() + dx / length * radius),
                 (int) Math.round(bounds.getCenterY() + dy / length * radius));
     }
 
-    private void drawDistantMinimapArrow(Graphics2D graphics, WorldPoint destination)
-    {
+    private void drawDistantMinimapArrow(Graphics2D graphics, WorldPoint destination) {
         Player player = client.getLocalPlayer();
         Rectangle bounds = minimapBounds();
         if (player == null || destination == null || bounds == null) return;
@@ -658,162 +477,77 @@ public class RouteGuidanceOverlay extends Overlay
         double length = Math.hypot(dx, dy);
         if (length == 0 || local == null) return;
         // RuneLite projects rotation and zoom; only the edge placement is ours.
-        LocalPoint proxy = local.plus((int) Math.round(dx / length * 4 * Perspective.LOCAL_TILE_SIZE),
-                (int) Math.round(dy / length * 4 * Perspective.LOCAL_TILE_SIZE));
+        LocalPoint proxy =
+                local.plus(
+                        (int) Math.round(dx / length * 4 * Perspective.LOCAL_TILE_SIZE),
+                        (int) Math.round(dy / length * 4 * Perspective.LOCAL_TILE_SIZE));
         Point origin = Perspective.localToMinimap(client, local);
         Point projected = Perspective.localToMinimap(client, proxy);
         Point tip = minimapEdgePoint(origin, projected, bounds);
-        if (tip != null)
-        {
-            drawMinimapArrowHead(graphics,
-                    new Point((int) bounds.getCenterX(), (int) bounds.getCenterY()), tip);
+        if (tip != null) {
+            drawMinimapArrowHead(
+                    graphics, new Point((int) bounds.getCenterX(), (int) bounds.getCenterY()), tip);
         }
     }
 
-    private void drawMinimapArrowHead(
-            Graphics2D graphics,
-            Point playerPoint,
-            Point tipPoint)
-    {
-        int vectorX =
-                tipPoint.getX()
-                        - playerPoint.getX();
+    private void drawMinimapArrowHead(Graphics2D graphics, Point playerPoint, Point tipPoint) {
+        int vectorX = tipPoint.getX() - playerPoint.getX();
 
-        int vectorY =
-                tipPoint.getY()
-                        - playerPoint.getY();
+        int vectorY = tipPoint.getY() - playerPoint.getY();
 
-        double length =
-                Math.sqrt(
-                        (double) vectorX * vectorX
-                                + (double) vectorY * vectorY
-                );
+        double length = Math.sqrt((double) vectorX * vectorX + (double) vectorY * vectorY);
 
-        if (length <= 0)
-        {
+        if (length <= 0) {
             return;
         }
 
-        double unitX =
-                vectorX / length;
+        double unitX = vectorX / length;
 
-        double unitY =
-                vectorY / length;
+        double unitY = vectorY / length;
 
-        double perpendicularX =
-                -unitY;
+        double perpendicularX = -unitY;
 
-        double perpendicularY =
-                unitX;
+        double perpendicularY = unitX;
 
-        int backX =
-                tipPoint.getX()
-                        - (int) Math.round(
-                        unitX
-                                * MINIMAP_ARROW_LENGTH
-                );
+        int backX = tipPoint.getX() - (int) Math.round(unitX * MINIMAP_ARROW_LENGTH);
 
-        int backY =
-                tipPoint.getY()
-                        - (int) Math.round(
-                        unitY
-                                * MINIMAP_ARROW_LENGTH
-                );
+        int backY = tipPoint.getY() - (int) Math.round(unitY * MINIMAP_ARROW_LENGTH);
 
-        int leftX =
-                backX
-                        + (int) Math.round(
-                        perpendicularX
-                                * MINIMAP_ARROW_HALF_WIDTH
-                );
+        int leftX = backX + (int) Math.round(perpendicularX * MINIMAP_ARROW_HALF_WIDTH);
 
-        int leftY =
-                backY
-                        + (int) Math.round(
-                        perpendicularY
-                                * MINIMAP_ARROW_HALF_WIDTH
-                );
+        int leftY = backY + (int) Math.round(perpendicularY * MINIMAP_ARROW_HALF_WIDTH);
 
-        int rightX =
-                backX
-                        - (int) Math.round(
-                        perpendicularX
-                                * MINIMAP_ARROW_HALF_WIDTH
-                );
+        int rightX = backX - (int) Math.round(perpendicularX * MINIMAP_ARROW_HALF_WIDTH);
 
-        int rightY =
-                backY
-                        - (int) Math.round(
-                        perpendicularY
-                                * MINIMAP_ARROW_HALF_WIDTH
-                );
+        int rightY = backY - (int) Math.round(perpendicularY * MINIMAP_ARROW_HALF_WIDTH);
 
         Polygon arrow =
                 new Polygon(
-                        new int[]
-                                {
-                                        tipPoint.getX(),
-                                        leftX,
-                                        rightX
-                                },
-                        new int[]
-                                {
-                                        tipPoint.getY(),
-                                        leftY,
-                                        rightY
-                                },
-                        3
-                );
+                        new int[] {tipPoint.getX(), leftX, rightX},
+                        new int[] {tipPoint.getY(), leftY, rightY},
+                        3);
 
-        Color previousColor =
-                graphics.getColor();
+        Color previousColor = graphics.getColor();
 
-        Stroke previousStroke =
-                graphics.getStroke();
+        Stroke previousStroke = graphics.getStroke();
 
-        graphics.setColor(
-                Color.BLACK
-        );
+        graphics.setColor(Color.BLACK);
 
-        graphics.setStroke(
-                new BasicStroke(
-                        4.0f,
-                        BasicStroke.CAP_ROUND,
-                        BasicStroke.JOIN_ROUND
-                )
-        );
+        graphics.setStroke(new BasicStroke(4.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 
-        graphics.draw(
-                arrow
-        );
+        graphics.draw(arrow);
 
-        graphics.setColor(
-                PINK
-        );
+        graphics.setColor(PINK);
 
-        graphics.fill(
-                arrow
-        );
+        graphics.fill(arrow);
 
-        graphics.setStroke(
-                new BasicStroke(
-                        1.5f,
-                        BasicStroke.CAP_ROUND,
-                        BasicStroke.JOIN_ROUND
-                )
-        );
+        graphics.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 
-        graphics.draw(
-                arrow
-        );
+        graphics.draw(arrow);
 
-        graphics.setStroke(
-                previousStroke
-        );
+        graphics.setStroke(previousStroke);
 
-        graphics.setColor(
-                previousColor
-        );
+        graphics.setColor(previousColor);
     }
 
     /*
@@ -822,67 +556,44 @@ public class RouteGuidanceOverlay extends Overlay
      * =====================================================
      */
 
-    private NPC findTargetNpc(
-            GatheringTarget target)
-    {
-        if (target == null
-                || !target.hasTargetId())
-        {
+    private NPC findTargetNpc(GatheringTarget target) {
+        if (target == null || !target.hasTargetId()) {
             return null;
         }
 
-        WorldView worldView =
-                client.getTopLevelWorldView();
+        WorldView worldView = client.getTopLevelWorldView();
 
-        if (worldView == null)
-        {
+        if (worldView == null) {
             return null;
         }
 
-        WorldPoint expectedLocation =
-                target.getWorldPoint();
+        WorldPoint expectedLocation = target.getWorldPoint();
 
-        NPC bestMatch =
-                null;
+        NPC bestMatch = null;
 
-        long bestDistance =
-                Long.MAX_VALUE;
+        long bestDistance = Long.MAX_VALUE;
 
-        for (NPC npc : trackedNpcs.getOrDefault(target.getTargetId(), Collections.emptySet()))
-        {
-            if (npc == null)
-            {
+        for (NPC npc : trackedNpcs.getOrDefault(target.getTargetId(), Collections.emptySet())) {
+            if (npc == null) {
                 continue;
             }
 
-            if (npc.getId()
-                    != target.getTargetId())
-            {
+            if (npc.getId() != target.getTargetId()) {
                 continue;
             }
 
-            WorldPoint npcLocation =
-                    npc.getWorldLocation();
+            WorldPoint npcLocation = npc.getWorldLocation();
 
-            long distance =
-                    worldDistance(
-                            expectedLocation,
-                            npcLocation
-                    );
+            long distance = worldDistance(expectedLocation, npcLocation);
 
-            if (npcLocation.getPlane() != client.getPlane() || distance > 32)
-            {
+            if (npcLocation.getPlane() != client.getPlane() || distance > 32) {
                 continue;
             }
 
-            if (bestMatch == null
-                    || distance < bestDistance)
-            {
-                bestMatch =
-                        npc;
+            if (bestMatch == null || distance < bestDistance) {
+                bestMatch = npc;
 
-                bestDistance =
-                        distance;
+                bestDistance = distance;
             }
         }
 
@@ -895,70 +606,36 @@ public class RouteGuidanceOverlay extends Overlay
      * =====================================================
      */
 
-    private void drawNpcHighlight(
-            Graphics2D graphics,
-            NPC npc,
-            GatheringTarget target)
-    {
-        Shape hull =
-                npc.getConvexHull();
+    private void drawNpcHighlight(Graphics2D graphics, NPC npc, GatheringTarget target) {
+        Shape hull = npc.getConvexHull();
 
-        if (hull != null)
-        {
-            Color previousColor =
-                    graphics.getColor();
+        if (hull != null) {
+            Color previousColor = graphics.getColor();
 
-            Stroke previousStroke =
-                    graphics.getStroke();
+            Stroke previousStroke = graphics.getStroke();
 
-            graphics.setColor(
-                    PINK_FILL
-            );
+            graphics.setColor(PINK_FILL);
 
-            graphics.fill(
-                    hull
-            );
+            graphics.fill(hull);
 
-            graphics.setColor(
-                    PINK
-            );
+            graphics.setColor(PINK);
 
-            graphics.setStroke(
-                    new BasicStroke(
-                            3.0f
-                    )
-            );
+            graphics.setStroke(new BasicStroke(3.0f));
 
-            graphics.draw(
-                    hull
-            );
+            graphics.draw(hull);
 
-            graphics.setStroke(
-                    previousStroke
-            );
+            graphics.setStroke(previousStroke);
 
-            graphics.setColor(
-                    previousColor
-            );
+            graphics.setColor(previousColor);
         }
 
-        String targetName =
-                target.getTargetName();
+        String targetName = target.getTargetName();
 
-        if (targetName == null
-                || targetName.trim().isEmpty())
-        {
-            targetName =
-                    activeStep.getItemName();
+        if (targetName == null || targetName.trim().isEmpty()) {
+            targetName = activeStep.getItemName();
         }
 
-        OverlayUtil.renderActorOverlay(
-                graphics,
-                npc,
-                "Next: "
-                        + targetName,
-                PINK
-        );
+        OverlayUtil.renderActorOverlay(graphics, npc, "Next: " + targetName, PINK);
     }
 
     /*
@@ -968,127 +645,74 @@ public class RouteGuidanceOverlay extends Overlay
      */
 
     private void drawRouteHud(
-            Graphics2D graphics,
-            GatheringTarget target,
-            WorldPoint targetWorldPoint)
-    {
-        Player localPlayer =
-                client.getLocalPlayer();
+            Graphics2D graphics, GatheringTarget target, WorldPoint targetWorldPoint) {
+        Player localPlayer = client.getLocalPlayer();
 
-        if (localPlayer == null)
-        {
+        if (localPlayer == null) {
             return;
         }
 
-        WorldPoint playerWorldPoint =
-                localPlayer.getWorldLocation();
+        WorldPoint playerWorldPoint = localPlayer.getWorldLocation();
 
-        if (playerWorldPoint == null)
-        {
+        if (playerWorldPoint == null) {
             return;
         }
 
-        int deltaX =
-                targetWorldPoint.getX()
-                        - playerWorldPoint.getX();
+        int deltaX = targetWorldPoint.getX() - playerWorldPoint.getX();
 
-        int deltaY =
-                targetWorldPoint.getY()
-                        - playerWorldPoint.getY();
+        int deltaY = targetWorldPoint.getY() - playerWorldPoint.getY();
 
-        int distance =
-                Math.max(
-                        Math.abs(
-                                deltaX
-                        ),
-                        Math.abs(
-                                deltaY
-                        )
-                );
+        int distance = Math.max(Math.abs(deltaX), Math.abs(deltaY));
 
-        String direction =
-                getDirection(
-                        deltaX,
-                        deltaY
-                );
+        String direction = getDirection(deltaX, deltaY);
 
-        String targetName =
-                target.getTargetName();
+        String targetName = target.getTargetName();
 
-        if (targetName == null
-                || targetName.trim().isEmpty())
-        {
-            targetName =
-                    activeStep.getItemName();
+        if (targetName == null || targetName.trim().isEmpty()) {
+            targetName = activeStep.getItemName();
         }
 
         OverlayUtil.renderTextLocation(
-                graphics,
-                new Point(
-                        20,
-                        45
-                ),
-                "Route: "
-                        + targetName,
-                ROUTE_BLUE
-        );
+                graphics, new Point(20, 45), "Route: " + targetName, ROUTE_BLUE);
 
         OverlayUtil.renderTextLocation(
                 graphics,
-                new Point(
-                        20,
-                        61
-                ),
-                activeStep.getItemName()
-                        + " - Need "
-                        + activeStep.getQuantityNeeded(),
-                ROUTE_BLUE
-        );
+                new Point(20, 61),
+                activeStep.getItemName() + " - Need " + activeStep.getQuantityNeeded(),
+                ROUTE_BLUE);
 
-        ActiveStageInfo stageInfo =
-                findActiveStageInfo();
+        ActiveStageInfo stageInfo = findActiveStageInfo();
 
         int directionY;
 
-        if (stageInfo != null)
-        {
+        if (stageInfo != null) {
             OverlayUtil.renderTextLocation(
-                    graphics,
-                    new Point(
-                            20,
-                            77
-                    ),
-                    buildStageText(
-                            stageInfo
-                    ),
-                    ROUTE_BLUE
-            );
+                    graphics, new Point(20, 77), buildStageText(stageInfo), ROUTE_BLUE);
 
-            directionY =
-                    93;
-        }
-        else
-        {
-            directionY =
-                    77;
+            directionY = 93;
+        } else {
+            directionY = 77;
         }
 
         OverlayUtil.renderTextLocation(
                 graphics,
-                new Point(
-                        20,
-                        directionY
-                ),
+                new Point(20, directionY),
                 client.isInInstancedRegion()
                         ? "Destination is outside this instance"
-                        : direction + " | " + distance + " tiles (straight line)"
-                        + (targetWorldPoint.getPlane() == playerWorldPoint.getPlane()
-                        ? "" : " | Go " + (targetWorldPoint.getPlane() > playerWorldPoint.getPlane()
-                        ? "up" : "down") + " to floor " + targetWorldPoint.getPlane()),
-                ROUTE_BLUE
-        );
-
-
+                        : direction
+                                + " | "
+                                + distance
+                                + " tiles (straight line)"
+                                + (targetWorldPoint.getPlane() == playerWorldPoint.getPlane()
+                                        ? ""
+                                        : " | Go "
+                                                + (targetWorldPoint.getPlane()
+                                                                > playerWorldPoint.getPlane()
+                                                        ? "up"
+                                                        : "down")
+                                                + " to floor "
+                                                + targetWorldPoint.getPlane()),
+                ROUTE_BLUE);
     }
 
     /*
@@ -1097,72 +721,35 @@ public class RouteGuidanceOverlay extends Overlay
      * =====================================================
      */
 
-    private String buildStageText(
-            ActiveStageInfo stageInfo)
-    {
-        StringBuilder text =
-                new StringBuilder();
+    private String buildStageText(ActiveStageInfo stageInfo) {
+        StringBuilder text = new StringBuilder();
 
-        text.append(
-                "Stage "
-        );
+        text.append("Stage ");
 
-        text.append(
-                stageInfo.stageNumber
-        );
+        text.append(stageInfo.stageNumber);
 
-        text.append(
-                "/"
-        );
+        text.append("/");
 
-        text.append(
-                stageInfo.stageCount
-        );
+        text.append(stageInfo.stageCount);
 
-        text.append(
-                ": "
-        );
+        text.append(": ");
 
-        text.append(
-                stageInfo.stage.getName()
-        );
+        text.append(stageInfo.stage.getName());
 
-        if (bankTracker != null
-                && stageInfo.stage
-                .hasCompletionRequirement())
-        {
-            int owned =
-                    stageInfo.stage
-                            .getOwnedQuantity(
-                                    bankTracker
-                            );
+        if (bankTracker != null && stageInfo.stage.hasCompletionRequirement()) {
+            int owned = stageInfo.stage.getOwnedQuantity(bankTracker);
 
-            int required =
-                    stageInfo.stage
-                            .getCompletionQuantity();
+            int required = stageInfo.stage.getCompletionQuantity();
 
-            text.append(
-                    " ("
-            );
+            text.append(" (");
 
-            text.append(
-                    Math.min(
-                            owned,
-                            required
-                    )
-            );
+            text.append(Math.min(owned, required));
 
-            text.append(
-                    "/"
-            );
+            text.append("/");
 
-            text.append(
-                    required
-            );
+            text.append(required);
 
-            text.append(
-                    ")"
-            );
+            text.append(")");
         }
 
         return text.toString();
@@ -1174,122 +761,74 @@ public class RouteGuidanceOverlay extends Overlay
      * =====================================================
      */
 
-    private ActiveStageInfo findActiveStageInfo()
-    {
-        if (activeStep == null
-                || !activeStep.hasStages())
-        {
+    private ActiveStageInfo findActiveStageInfo() {
+        if (activeStep == null || !activeStep.hasStages()) {
             return null;
         }
 
-        GatheringTarget activeTarget =
-                activeStep.getTarget();
+        GatheringTarget activeTarget = activeStep.getTarget();
 
-        if (activeTarget == null)
-        {
+        if (activeTarget == null) {
             return null;
         }
 
-        List<GatheringStage> stages =
-                activeStep.getStages();
+        List<GatheringStage> stages = activeStep.getStages();
 
-        for (int index = 0;
-             index < stages.size();
-             index++)
-        {
-            GatheringStage stage =
-                    stages.get(
-                            index
-                    );
+        for (int index = 0; index < stages.size(); index++) {
+            GatheringStage stage = stages.get(index);
 
-            if (stage == null)
-            {
+            if (stage == null) {
                 continue;
             }
 
-            if (sameTarget(
-                    activeTarget,
-                    stage.getTarget()))
-            {
-                return new ActiveStageInfo(
-                        stage,
-                        index + 1,
-                        stages.size()
-                );
+            if (sameTarget(activeTarget, stage.getTarget())) {
+                return new ActiveStageInfo(stage, index + 1, stages.size());
             }
         }
 
         return null;
     }
 
-    private boolean sameTarget(
-            GatheringTarget first,
-            GatheringTarget second)
-    {
-        if (first == null
-                || second == null)
-        {
+    private boolean sameTarget(GatheringTarget first, GatheringTarget second) {
+        if (first == null || second == null) {
             return false;
         }
 
-        if (first.getType()
-                != second.getType())
-        {
+        if (first.getType() != second.getType()) {
             return false;
         }
 
-        if (first.getTargetId()
-                != second.getTargetId())
-        {
+        if (first.getTargetId() != second.getTargetId()) {
             return false;
         }
 
-        WorldPoint firstPoint =
-                first.getWorldPoint();
+        WorldPoint firstPoint = first.getWorldPoint();
 
-        WorldPoint secondPoint =
-                second.getWorldPoint();
+        WorldPoint secondPoint = second.getWorldPoint();
 
-        if (firstPoint == null
-                && secondPoint != null)
-        {
+        if (firstPoint == null && secondPoint != null) {
             return false;
         }
 
-        if (firstPoint != null
-                && secondPoint == null)
-        {
+        if (firstPoint != null && secondPoint == null) {
             return false;
         }
 
-        if (firstPoint != null)
-        {
-            if (firstPoint.getX()
-                    != secondPoint.getX())
-            {
+        if (firstPoint != null) {
+            if (firstPoint.getX() != secondPoint.getX()) {
                 return false;
             }
 
-            if (firstPoint.getY()
-                    != secondPoint.getY())
-            {
+            if (firstPoint.getY() != secondPoint.getY()) {
                 return false;
             }
 
-            if (firstPoint.getPlane()
-                    != secondPoint.getPlane())
-            {
+            if (firstPoint.getPlane() != secondPoint.getPlane()) {
                 return false;
             }
         }
 
-        return safeText(
-                first.getTargetName()
-        ).equalsIgnoreCase(
-                safeText(
-                        second.getTargetName()
-                )
-        );
+        return safeText(first.getTargetName()).equalsIgnoreCase(safeText(second.getTargetName()));
     }
 
     /*
@@ -1299,88 +838,44 @@ public class RouteGuidanceOverlay extends Overlay
      */
 
     private void drawTargetTile(
-            Graphics2D graphics,
-            LocalPoint localPoint,
-            GatheringTarget target)
-    {
-        Polygon polygon =
-                Perspective.getCanvasTilePoly(
-                        client,
-                        localPoint
-                );
+            Graphics2D graphics, LocalPoint localPoint, GatheringTarget target) {
+        Polygon polygon = Perspective.getCanvasTilePoly(client, localPoint);
 
-        if (polygon == null)
-        {
+        if (polygon == null) {
             return;
         }
 
-        Color previousColor =
-                graphics.getColor();
+        Color previousColor = graphics.getColor();
 
-        Stroke previousStroke =
-                graphics.getStroke();
+        Stroke previousStroke = graphics.getStroke();
 
-        graphics.setColor(
-                PINK_FILL
-        );
+        graphics.setColor(PINK_FILL);
 
-        graphics.fill(
-                polygon
-        );
+        graphics.fill(polygon);
 
-        graphics.setColor(
-                PINK
-        );
+        graphics.setColor(PINK);
 
-        graphics.setStroke(
-                new BasicStroke(
-                        3.0f
-                )
-        );
+        graphics.setStroke(new BasicStroke(3.0f));
 
-        graphics.draw(
-                polygon
-        );
+        graphics.draw(polygon);
 
-        graphics.setStroke(
-                previousStroke
-        );
+        graphics.setStroke(previousStroke);
 
-        graphics.setColor(
-                previousColor
-        );
+        graphics.setColor(previousColor);
 
-        String targetName =
-                target.getTargetName();
+        String targetName = target.getTargetName();
 
-        if (targetName == null
-                || targetName.trim().isEmpty())
-        {
-            targetName =
-                    activeStep.getItemName();
+        if (targetName == null || targetName.trim().isEmpty()) {
+            targetName = activeStep.getItemName();
         }
 
-        String text =
-                "Next: "
-                        + targetName;
+        String text = "Next: " + targetName;
 
         Point textLocation =
-                Perspective.getCanvasTextLocation(
-                        client,
-                        graphics,
-                        localPoint,
-                        text,
-                        0
-                );
+                Perspective.getCanvasTextLocation(client, graphics, localPoint, text, 0);
 
-        if (textLocation != null)
-        {
-            OverlayUtil.renderTextLocation(
-                    graphics,
-                    textLocation,
-                    text,
-                    PINK
-            );
+        if (textLocation != null) {
+            OverlayUtil.renderTextLocation(graphics, textLocation, text, PINK);
         }
     }
 
@@ -1390,39 +885,19 @@ public class RouteGuidanceOverlay extends Overlay
      * =====================================================
      */
 
-    private long worldDistance(
-            WorldPoint first,
-            WorldPoint second)
-    {
-        if (first == null
-                || second == null)
-        {
+    private long worldDistance(WorldPoint first, WorldPoint second) {
+        if (first == null || second == null) {
             return Long.MAX_VALUE;
         }
 
-        long x =
-                Math.abs(
-                        (long) first.getX()
-                                - second.getX()
-                );
+        long x = Math.abs((long) first.getX() - second.getX());
 
-        long y =
-                Math.abs(
-                        (long) first.getY()
-                                - second.getY()
-                );
+        long y = Math.abs((long) first.getY() - second.getY());
 
-        long distance =
-                Math.max(
-                        x,
-                        y
-                );
+        long distance = Math.max(x, y);
 
-        if (first.getPlane()
-                != second.getPlane())
-        {
-            distance +=
-                    10000L;
+        if (first.getPlane() != second.getPlane()) {
+            distance += 10000L;
         }
 
         return distance;
@@ -1434,75 +909,46 @@ public class RouteGuidanceOverlay extends Overlay
      * =====================================================
      */
 
-    private String getDirection(
-            int deltaX,
-            int deltaY)
-    {
-        if (deltaX == 0
-                && deltaY == 0)
-        {
+    private String getDirection(int deltaX, int deltaY) {
+        if (deltaX == 0 && deltaY == 0) {
             return "Here";
         }
 
-        double angle =
-                Math.toDegrees(
-                        Math.atan2(
-                                deltaY,
-                                deltaX
-                        )
-                );
+        double angle = Math.toDegrees(Math.atan2(deltaY, deltaX));
 
-        if (angle >= 67.5
-                && angle < 112.5)
-        {
+        if (angle >= 67.5 && angle < 112.5) {
             return "North";
         }
 
-        if (angle >= 22.5
-                && angle < 67.5)
-        {
+        if (angle >= 22.5 && angle < 67.5) {
             return "North-east";
         }
 
-        if (angle >= -22.5
-                && angle < 22.5)
-        {
+        if (angle >= -22.5 && angle < 22.5) {
             return "East";
         }
 
-        if (angle >= -67.5
-                && angle < -22.5)
-        {
+        if (angle >= -67.5 && angle < -22.5) {
             return "South-east";
         }
 
-        if (angle >= -112.5
-                && angle < -67.5)
-        {
+        if (angle >= -112.5 && angle < -67.5) {
             return "South";
         }
 
-        if (angle >= -157.5
-                && angle < -112.5)
-        {
+        if (angle >= -157.5 && angle < -112.5) {
             return "South-west";
         }
 
-        if (angle >= 112.5
-                && angle < 157.5)
-        {
+        if (angle >= 112.5 && angle < 157.5) {
             return "North-west";
         }
 
         return "West";
     }
 
-    private String safeText(
-            String value)
-    {
-        return value == null
-                ? ""
-                : value.trim();
+    private String safeText(String value) {
+        return value == null ? "" : value.trim();
     }
 
     /*
@@ -1511,25 +957,17 @@ public class RouteGuidanceOverlay extends Overlay
      * =====================================================
      */
 
-    private static final class ActiveStageInfo
-    {
+    private static final class ActiveStageInfo {
         private final GatheringStage stage;
         private final int stageNumber;
         private final int stageCount;
 
-        private ActiveStageInfo(
-                GatheringStage stage,
-                int stageNumber,
-                int stageCount)
-        {
-            this.stage =
-                    stage;
+        private ActiveStageInfo(GatheringStage stage, int stageNumber, int stageCount) {
+            this.stage = stage;
 
-            this.stageNumber =
-                    stageNumber;
+            this.stageNumber = stageNumber;
 
-            this.stageCount =
-                    stageCount;
+            this.stageCount = stageCount;
         }
     }
 }

@@ -39,680 +39,499 @@ import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
 
 @PluginDescriptor(
-		name = "Ironman Quest Prep",
+        name = "Ironman Quest Prep",
         configName = "ironquestprepplugin",
-		description = "Quest preparation checklist, gathering destinations and quest reward XP planning",
-		tags = {"ironman", "quest", "items", "prep", "checklist"}
-)
+        description =
+                "Quest preparation checklist, gathering destinations and quest reward XP planning",
+        tags = {"ironman", "quest", "items", "prep", "checklist"})
 @lombok.extern.slf4j.Slf4j
-public class QuestPrepPlugin extends Plugin
-{
-	@Inject
-	private ClientToolbar clientToolbar;
+public class QuestPrepPlugin extends Plugin {
+    @Inject private ClientToolbar clientToolbar;
 
-	@Inject
-	private Client client;
+    @Inject private Client client;
 
-	@Inject
-	private OverlayManager overlayManager;
+    @Inject private OverlayManager overlayManager;
 
-	@Inject
-	private QuestGroundItemOverlay groundItemOverlay;
+    @Inject private QuestGroundItemOverlay groundItemOverlay;
 
-	@Inject
-	private RouteGuidanceOverlay routeGuidanceOverlay;
+    @Inject private RouteGuidanceOverlay routeGuidanceOverlay;
 
-	@Inject
-	private RouteMinimapOverlay routeMinimapOverlay;
+    @Inject private RouteMinimapOverlay routeMinimapOverlay;
 
-	@Inject
-	private ClientThread clientThread;
+    @Inject private ClientThread clientThread;
 
-	private IronQuestprepPanel panel;
-	private NavigationButton navButton;
+    private IronQuestprepPanel panel;
+    private NavigationButton navButton;
 
-	private final BankTracker bankTracker =
-			new BankTracker();
+    private final BankTracker bankTracker = new BankTracker();
 
-	private List<RequiredItem> activeRequirements =
-			Collections.emptyList();
+    private List<RequiredItem> activeRequirements = Collections.emptyList();
 
-	private final Map<Tile, Integer> groundItemTileCounts =
-			new HashMap<>();
+    private final Map<Tile, Integer> groundItemTileCounts = new HashMap<>();
 
-	private long lastAccountHash = -1L;
+    private long lastAccountHash = -1L;
 
-	private boolean questProgressDirty;
+    private boolean questProgressDirty;
     private boolean skillsDirty = true;
     private int lastSkillsRefreshTick = -10;
-	private int lastProgressRefreshTick;
+    private int lastProgressRefreshTick;
 
-	@Override
-	protected void startUp()
-	{
-		bankTracker.clear();
+    @Override
+    protected void startUp() {
+        bankTracker.clear();
         skillsDirty = true;
         lastSkillsRefreshTick = -10;
 
-		activeRequirements =
-				Collections.emptyList();
+        activeRequirements = Collections.emptyList();
 
-		groundItemTileCounts.clear();
+        groundItemTileCounts.clear();
 
-		routeGuidanceOverlay.clearActiveStep();
+        routeGuidanceOverlay.clearActiveStep();
 
-		routeGuidanceOverlay.setBankTracker(
-				bankTracker
-		);
+        routeGuidanceOverlay.setBankTracker(bankTracker);
 
-		lastAccountHash =
-				client.getAccountHash();
+        lastAccountHash = client.getAccountHash();
 
-		panel =
-				new IronQuestprepPanel();
+        panel = new IronQuestprepPanel();
 
-		/*
-		 * Manual route selection from the Gathering Route
-		 * panel.
-		 */
-		panel.setRouteStepSelectionListener(
-				step -> clientThread.invokeLater(() -> selectRouteStep(step))
-		);
+        /*
+         * Manual route selection from the Gathering Route
+         * panel.
+         */
+        panel.setRouteStepSelectionListener(
+                step -> clientThread.invokeLater(() -> selectRouteStep(step)));
 
-		BufferedImage icon = QuestIcon.create();
+        BufferedImage icon = QuestIcon.create();
 
-		navButton =
-				NavigationButton.builder()
-						.tooltip(
-								"Ironman Quest Prep"
-						)
-						.icon(icon)
-						.priority(5)
-						.panel(panel)
-						.build();
+        navButton =
+                NavigationButton.builder()
+                        .tooltip("Ironman Quest Prep")
+                        .icon(icon)
+                        .priority(5)
+                        .panel(panel)
+                        .build();
 
-		clientToolbar.addNavigation(
-				navButton
-		);
+        clientToolbar.addNavigation(navButton);
 
-		overlayManager.add(
-				groundItemOverlay
-		);
+        overlayManager.add(groundItemOverlay);
 
-		overlayManager.add(
-				routeGuidanceOverlay
-		);
-		overlayManager.add(routeMinimapOverlay);
-        clientThread.invokeLater(() -> {
-            if (panel != null && client.getGameState() == GameState.LOGGED_IN) routeGuidanceOverlay.seedNpcs();
-        });
+        overlayManager.add(routeGuidanceOverlay);
+        overlayManager.add(routeMinimapOverlay);
+        clientThread.invokeLater(
+                () -> {
+                    if (panel != null && client.getGameState() == GameState.LOGGED_IN)
+                        routeGuidanceOverlay.seedNpcs();
+                });
 
-		log.debug(
-				"Ironman Quest Prep started!"
-		);
-	}
+        log.debug("Ironman Quest Prep started!");
+    }
 
-	/*
-	 * =====================================================
-	 * MANUAL ROUTE SELECTION
-	 * =====================================================
-	 */
+    /*
+     * =====================================================
+     * MANUAL ROUTE SELECTION
+     * =====================================================
+     */
 
-	private void selectRouteStep(
-			GatheringStep step)
-	{
-		if (step == null)
-		{
-			return;
-		}
+    private void selectRouteStep(GatheringStep step) {
+        if (step == null) {
+            return;
+        }
 
-		if (!step.hasNavigationTarget())
-		{
-			return;
-		}
+        if (!step.hasNavigationTarget()) {
+            return;
+        }
 
-		routeGuidanceOverlay.setActiveStep(
-				step
-		);
+        routeGuidanceOverlay.setActiveStep(step);
 
-		log.debug(
-				"Ironman Quest Prep: navigating to "
-						+ step.getItemName()
-						+ " at "
-						+ step.getTarget()
-						.getCoordinateText()
-		);
-	}
+        log.debug(
+                "Ironman Quest Prep: navigating to "
+                        + step.getItemName()
+                        + " at "
+                        + step.getTarget().getCoordinateText());
+    }
 
-	/*
-	 * =====================================================
-	 * ACCOUNT CHANGES
-	 * =====================================================
-	 */
+    /*
+     * =====================================================
+     * ACCOUNT CHANGES
+     * =====================================================
+     */
 
-	@Subscribe
-	public void onAccountHashChanged(
-			AccountHashChanged event)
-	{
-		long currentAccountHash =
-				client.getAccountHash();
+    @Subscribe
+    public void onAccountHashChanged(AccountHashChanged event) {
+        long currentAccountHash = client.getAccountHash();
 
-		if (currentAccountHash == -1L)
-		{
-			return;
-		}
+        if (currentAccountHash == -1L) {
+            return;
+        }
 
-		if (lastAccountHash != -1L
-				&& currentAccountHash
-				!= lastAccountHash)
-		{
-			bankTracker.clear();
+        if (lastAccountHash != -1L && currentAccountHash != lastAccountHash) {
+            bankTracker.clear();
 
-			activeRequirements =
-					Collections.emptyList();
+            activeRequirements = Collections.emptyList();
 
-			groundItemTileCounts.clear();
+            groundItemTileCounts.clear();
 
-			routeGuidanceOverlay.clearActiveStep();
+            routeGuidanceOverlay.clearActiveStep();
 
-			if (panel != null)
-			{
-				panel.resetForAccountChange();
+            if (panel != null) {
+                panel.resetForAccountChange();
                 skillsDirty = true;
                 lastSkillsRefreshTick = -10;
-			}
+            }
 
-			log.debug(
-					"Ironman Quest Prep: account changed - cached item data cleared."
-			);
-		}
+            log.debug("Ironman Quest Prep: account changed - cached item data cleared.");
+        }
 
-		lastAccountHash =
-				currentAccountHash;
-	}
+        lastAccountHash = currentAccountHash;
+    }
 
-	/*
-	 * =====================================================
-	 * ITEM CONTAINERS
-	 * =====================================================
-	 */
+    /*
+     * =====================================================
+     * ITEM CONTAINERS
+     * =====================================================
+     */
 
-	@Subscribe
-	public void onItemContainerChanged(
-			ItemContainerChanged event)
-	{
-		int containerId =
-				event.getContainerId();
+    @Subscribe
+    public void onItemContainerChanged(ItemContainerChanged event) {
+        int containerId = event.getContainerId();
 
-		/*
-		 * Player bank.
-		 */
-		if (containerId
-				== InventoryID.BANK)
-		{
-			bankTracker.scanBank(
-					event.getItemContainer()
-			);
+        /*
+         * Player bank.
+         */
+        if (containerId == InventoryID.BANK) {
+            bankTracker.scanBank(event.getItemContainer());
 
-			refreshChecklist();
+            refreshChecklist();
 
-			return;
-		}
+            return;
+        }
 
-		/*
-		 * Group Ironman shared storage.
-		 */
-		if (containerId
-				== InventoryID.INV_GROUP_TEMP)
-		{
-			bankTracker.scanGroupStorage(
-					event.getItemContainer()
-			);
+        /*
+         * Group Ironman shared storage.
+         */
+        if (containerId == InventoryID.INV_GROUP_TEMP) {
+            bankTracker.scanGroupStorage(event.getItemContainer());
 
-			if (bankTracker.hasScannedBank())
-			{
-				refreshChecklist();
-			}
+            if (bankTracker.hasScannedBank()) {
+                refreshChecklist();
+            }
 
-			return;
-		}
+            return;
+        }
 
-		/*
-		 * Player inventory.
-		 *
-		 * Inventory now counts towards quest-prep ownership.
-		 */
-		if (containerId
-				== InventoryID.INV)
-		{
-			bankTracker.scanInventory(
-					event.getItemContainer()
-			);
+        /*
+         * Player inventory.
+         *
+         * Inventory now counts towards quest-prep ownership.
+         */
+        if (containerId == InventoryID.INV) {
+            bankTracker.scanInventory(event.getItemContainer());
 
-			if (bankTracker.hasScannedBank())
-			{
-				refreshChecklist();
-			}
-		}
-	}
+            if (bankTracker.hasScannedBank()) {
+                refreshChecklist();
+            }
+        }
+    }
 
-	/*
-	 * =====================================================
-	 * GROUND ITEMS
-	 * =====================================================
-	 */
+    /*
+     * =====================================================
+     * GROUND ITEMS
+     * =====================================================
+     */
 
-	@Subscribe
-	public void onItemSpawned(
-			ItemSpawned event)
-	{
-		Tile tile =
-				event.getTile();
+    @Subscribe
+    public void onItemSpawned(ItemSpawned event) {
+        Tile tile = event.getTile();
 
-		if (tile == null)
-		{
-			return;
-		}
+        if (tile == null) {
+            return;
+        }
 
-		groundItemTileCounts.merge(
-				tile,
-				1,
-				Integer::sum
-		);
-	}
+        groundItemTileCounts.merge(tile, 1, Integer::sum);
+    }
 
-	@Subscribe
-	public void onItemDespawned(
-			ItemDespawned event)
-	{
-		Tile tile =
-				event.getTile();
+    @Subscribe
+    public void onItemDespawned(ItemDespawned event) {
+        Tile tile = event.getTile();
 
-		if (tile == null)
-		{
-			return;
-		}
+        if (tile == null) {
+            return;
+        }
 
-		Integer count =
-				groundItemTileCounts.get(
-						tile
-				);
+        Integer count = groundItemTileCounts.get(tile);
 
-		if (count == null)
-		{
-			return;
-		}
+        if (count == null) {
+            return;
+        }
 
-		if (count <= 1)
-		{
-			groundItemTileCounts.remove(
-					tile
-			);
-		}
-		else
-		{
-			groundItemTileCounts.put(
-					tile,
-					count - 1
-			);
-		}
-	}
+        if (count <= 1) {
+            groundItemTileCounts.remove(tile);
+        } else {
+            groundItemTileCounts.put(tile, count - 1);
+        }
+    }
 
-	@Subscribe
-	public void onGameStateChanged(
-			GameStateChanged event)
-	{
-		GameState state =
-				event.getGameState();
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged event) {
+        GameState state = event.getGameState();
         skillsDirty = true;
         lastSkillsRefreshTick = -10;
         if (state == GameState.LOGGED_IN) routeGuidanceOverlay.seedNpcs();
-        if (state == GameState.LOGIN_SCREEN || state == GameState.HOPPING) routeGuidanceOverlay.clearNpcs();
+        if (state == GameState.LOGIN_SCREEN || state == GameState.HOPPING)
+            routeGuidanceOverlay.clearNpcs();
         if (state == GameState.LOGIN_SCREEN && panel != null) panel.updateSkills(null);
 
-		if (state == GameState.LOADING
-				|| state == GameState.HOPPING
-				|| state == GameState.LOGIN_SCREEN)
-		{
-			groundItemTileCounts.clear();
-		}
-		if (state == GameState.LOGIN_SCREEN)
-		{
-			routeGuidanceOverlay.clearActiveStep();
-		}
-	}
+        if (state == GameState.LOADING
+                || state == GameState.HOPPING
+                || state == GameState.LOGIN_SCREEN) {
+            groundItemTileCounts.clear();
+        }
+        if (state == GameState.LOGIN_SCREEN) {
+            routeGuidanceOverlay.clearActiveStep();
+        }
+    }
 
-	/*
-	 * =====================================================
-	 * CHECKLIST REFRESH
-	 * =====================================================
-	 */
+    /*
+     * =====================================================
+     * CHECKLIST REFRESH
+     * =====================================================
+     */
 
     @Subscribe
-    public void onNpcSpawned(NpcSpawned event) { routeGuidanceOverlay.trackNpc(event.getNpc()); }
+    public void onNpcSpawned(NpcSpawned event) {
+        routeGuidanceOverlay.trackNpc(event.getNpc());
+    }
 
     @Subscribe
-    public void onNpcDespawned(NpcDespawned event) { routeGuidanceOverlay.untrackNpc(event.getNpc()); }
+    public void onNpcDespawned(NpcDespawned event) {
+        routeGuidanceOverlay.untrackNpc(event.getNpc());
+    }
 
     @Subscribe
-    public void onNpcChanged(NpcChanged event) { routeGuidanceOverlay.trackNpc(event.getNpc()); }
+    public void onNpcChanged(NpcChanged event) {
+        routeGuidanceOverlay.trackNpc(event.getNpc());
+    }
 
     @Subscribe
-    public void onVarbitChanged(VarbitChanged event)
-    {
+    public void onVarbitChanged(VarbitChanged event) {
         // Quest progress can unlock a source without any inventory change.
         questProgressDirty = true;
         skillsDirty = true;
     }
 
     @Subscribe
-    public void onStatChanged(StatChanged event) { skillsDirty = true; }
+    public void onStatChanged(StatChanged event) {
+        skillsDirty = true;
+    }
 
     @Subscribe
-    public void onGameTick(GameTick event)
-    {
-        if (skillsDirty && client.getGameState() == GameState.LOGGED_IN
-                && client.getTickCount() - lastSkillsRefreshTick >= 10 && panel != null)
-        {
+    public void onGameTick(GameTick event) {
+        if (skillsDirty
+                && client.getGameState() == GameState.LOGGED_IN
+                && client.getTickCount() - lastSkillsRefreshTick >= 10
+                && panel != null) {
             panel.updateSkills(QuestSkillPlanner.snapshot(client));
             skillsDirty = false;
             lastSkillsRefreshTick = client.getTickCount();
         }
-        if (questProgressDirty && bankTracker.hasScannedBank()
+        if (questProgressDirty
+                && bankTracker.hasScannedBank()
                 && client.getGameState() == GameState.LOGGED_IN
-                && client.getTickCount() - lastProgressRefreshTick >= 10)
-        {
+                && client.getTickCount() - lastProgressRefreshTick >= 10) {
             refreshChecklist();
         }
     }
 
-	private void refreshChecklist()
-	{
+    private void refreshChecklist() {
         questProgressDirty = false;
         lastProgressRefreshTick = client.getTickCount();
-		List<RequiredItem> requirements =
-				QuestItemDatabase
-						.getItemsForUnfinishedQuests(
-								client,
-								bankTracker
-						);
+        List<RequiredItem> requirements =
+                QuestItemDatabase.getItemsForUnfinishedQuests(client, bankTracker);
 
-		activeRequirements =
-				new ArrayList<>(
-						requirements
-				);
+        activeRequirements = new ArrayList<>(requirements);
 
-		refreshRouteGuidance(
-				requirements
-		);
+        refreshRouteGuidance(requirements);
 
-		if (panel != null)
-		{
-			panel.updateBankStatus(
-					bankTracker.getUniqueItemCount(),
-					bankTracker.getTotalItemCount()
-			);
+        if (panel != null) {
+            panel.updateBankStatus(
+                    bankTracker.getUniqueItemCount(), bankTracker.getTotalItemCount());
 
-			panel.updateChecklist(
-					bankTracker,
-					requirements
-			);
-		}
-	}
+            panel.updateChecklist(bankTracker, requirements);
+        }
+    }
 
-	/*
-	 * =====================================================
-	 * PLAYER POSITION
-	 * =====================================================
-	 */
+    /*
+     * =====================================================
+     * PLAYER POSITION
+     * =====================================================
+     */
 
-	private WorldPoint getPlayerWorldPoint()
-	{
-		if (client.getLocalPlayer()
-				== null)
-		{
-			return null;
-		}
+    private WorldPoint getPlayerWorldPoint() {
+        if (client.getLocalPlayer() == null) {
+            return null;
+        }
 
-		return client.getLocalPlayer()
-				.getWorldLocation();
-	}
+        return client.getLocalPlayer().getWorldLocation();
+    }
 
-	/*
-	 * =====================================================
-	 * ROUTE GUIDANCE
-	 * =====================================================
-	 */
+    /*
+     * =====================================================
+     * ROUTE GUIDANCE
+     * =====================================================
+     */
 
-	private void refreshRouteGuidance(
-			List<RequiredItem> requirements)
-	{
-		WorldPoint playerLocation =
-				getPlayerWorldPoint();
+    private void refreshRouteGuidance(List<RequiredItem> requirements) {
+        WorldPoint playerLocation = getPlayerWorldPoint();
 
-		/*
-		 * THIS is the important change.
-		 *
-		 * The route is now built using the player's current
-		 * position instead of purely alphabetical ordering.
-		 */
-		List<GatheringStep> steps =
-				GatheringRouteBuilder.build(
-						requirements,
-						bankTracker,
-						playerLocation
-				);
+        /*
+         * THIS is the important change.
+         *
+         * The route is now built using the player's current
+         * position instead of purely alphabetical ordering.
+         */
+        List<GatheringStep> steps =
+                GatheringRouteBuilder.build(requirements, bankTracker, playerLocation);
 
-		/*
-		 * Preserve the manually selected destination while
-		 * it is still required.
-		 */
-		GatheringStep currentStep =
-				routeGuidanceOverlay.getActiveStep();
+        /*
+         * Preserve the manually selected destination while
+         * it is still required.
+         */
+        GatheringStep currentStep = routeGuidanceOverlay.getActiveStep();
 
-		if (currentStep != null)
-		{
-			for (GatheringStep step : steps)
-			{
-				if (!step.hasNavigationTarget())
-				{
-					continue;
-				}
+        if (currentStep != null) {
+            for (GatheringStep step : steps) {
+                if (!step.hasNavigationTarget()) {
+                    continue;
+                }
 
-				if (isSameRouteStep(
-						currentStep,
-						step))
-				{
-					routeGuidanceOverlay.setActiveStep(
-							step
-					);
+                if (isSameRouteStep(currentStep, step)) {
+                    routeGuidanceOverlay.setActiveStep(step);
 
-					return;
-				}
-			}
-		}
+                    return;
+                }
+            }
+        }
 
-		/*
-		 * Otherwise the FIRST navigable entry is now the
-		 * nearest route target produced by
-		 * GatheringRouteBuilder.
-		 */
-		for (GatheringStep step : steps)
-		{
-			if (!step.hasNavigationTarget())
-			{
-				continue;
-			}
+        /*
+         * Otherwise the FIRST navigable entry is now the
+         * nearest route target produced by
+         * GatheringRouteBuilder.
+         */
+        for (GatheringStep step : steps) {
+            if (!step.hasNavigationTarget()) {
+                continue;
+            }
 
-			routeGuidanceOverlay.setActiveStep(
-					step
-			);
+            routeGuidanceOverlay.setActiveStep(step);
 
-			return;
-		}
+            return;
+        }
 
-		routeGuidanceOverlay.clearActiveStep();
-	}
+        routeGuidanceOverlay.clearActiveStep();
+    }
 
-	/*
-	 * =====================================================
-	 * ROUTE STEP IDENTITY
-	 * =====================================================
-	 */
+    /*
+     * =====================================================
+     * ROUTE STEP IDENTITY
+     * =====================================================
+     */
 
-	private boolean isSameRouteStep(
-			GatheringStep first,
-			GatheringStep second)
-	{
-		if (first == null
-				|| second == null)
-		{
-			return false;
-		}
+    private boolean isSameRouteStep(GatheringStep first, GatheringStep second) {
+        if (first == null || second == null) {
+            return false;
+        }
 
-		if (first.getRegion()
-				!= second.getRegion())
-		{
-			return false;
-		}
+        if (first.getRegion() != second.getRegion()) {
+            return false;
+        }
 
-		if (!safeText(
-				first.getItemName())
-				.equalsIgnoreCase(
-						safeText(
-								second.getItemName()
-						)
-				))
-		{
-			return false;
-		}
+        if (!safeText(first.getItemName()).equalsIgnoreCase(safeText(second.getItemName()))) {
+            return false;
+        }
 
-		return safeText(
-				first.getLocation())
-				.equalsIgnoreCase(
-						safeText(
-								second.getLocation()
-						)
-				);
-	}
+        return safeText(first.getLocation()).equalsIgnoreCase(safeText(second.getLocation()));
+    }
 
-	private String safeText(
-			String text)
-	{
-		return text == null
-				? ""
-				: text.trim();
-	}
+    private String safeText(String text) {
+        return text == null ? "" : text.trim();
+    }
 
-	/*
-	 * =====================================================
-	 * GROUND ITEM OVERLAY DATA
-	 * =====================================================
-	 */
+    /*
+     * =====================================================
+     * GROUND ITEM OVERLAY DATA
+     * =====================================================
+     */
 
-	String getGroundItemLabel(
-			int groundItemId)
-	{
-		for (RequiredItem item
-				: activeRequirements)
-		{
-			int missing =
-					item.getMissingQuantity(
-							bankTracker
-					);
+    String getGroundItemLabel(int groundItemId) {
+        for (RequiredItem item : activeRequirements) {
+            int missing = item.getMissingQuantity(bankTracker);
 
-			if (missing <= 0)
-			{
-				continue;
-			}
+            if (missing <= 0) {
+                continue;
+            }
 
-			for (int acceptedId
-					: item.getItemIds())
-			{
-				if (acceptedId
-						!= groundItemId)
-				{
-					continue;
-				}
+            for (int acceptedId : item.getItemIds()) {
+                if (acceptedId != groundItemId) {
+                    continue;
+                }
 
-				return item.getName()
-						+ " [Need "
-						+ missing
-						+ "]";
-			}
-		}
+                return item.getName() + " [Need " + missing + "]";
+            }
+        }
 
-		return null;
-	}
+        return null;
+    }
 
-	Set<Tile> getGroundItemTiles()
-	{
-		return new HashSet<>(
-				groundItemTileCounts.keySet()
-		);
-	}
+    Set<Tile> getGroundItemTiles() {
+        return new HashSet<>(groundItemTileCounts.keySet());
+    }
 
-	/*
-	 * =====================================================
-	 * SHUTDOWN
-	 * =====================================================
-	 */
+    /*
+     * =====================================================
+     * SHUTDOWN
+     * =====================================================
+     */
 
-	@Override
-	protected void shutDown()
-	{
-		overlayManager.remove(
-				groundItemOverlay
-		);
+    @Override
+    protected void shutDown() {
+        overlayManager.remove(groundItemOverlay);
 
-		overlayManager.remove(
-				routeGuidanceOverlay
-		);
-		overlayManager.remove(routeMinimapOverlay);
+        overlayManager.remove(routeGuidanceOverlay);
+        overlayManager.remove(routeMinimapOverlay);
         routeGuidanceOverlay.clearNpcs();
         skillsDirty = true;
         lastSkillsRefreshTick = -10;
 
-		routeGuidanceOverlay.clearActiveStep();
+        routeGuidanceOverlay.clearActiveStep();
 
-		bankTracker.clear();
+        bankTracker.clear();
 
-		activeRequirements =
-				Collections.emptyList();
+        activeRequirements = Collections.emptyList();
 
-		groundItemTileCounts.clear();
+        groundItemTileCounts.clear();
 
-		lastAccountHash = -1L;
+        lastAccountHash = -1L;
         questProgressDirty = false;
         lastProgressRefreshTick = 0;
 
-		if (navButton != null)
-		{
-			clientToolbar.removeNavigation(
-					navButton
-			);
-		}
+        if (navButton != null) {
+            clientToolbar.removeNavigation(navButton);
+        }
 
-		panel = null;
-		navButton = null;
+        panel = null;
+        navButton = null;
 
-		log.debug(
-				"Ironman Quest Prep stopped!"
-		);
-	}
+        log.debug("Ironman Quest Prep stopped!");
+    }
 
-	/*
-	 * =====================================================
-	 * CONFIG
-	 * =====================================================
-	 */
+    /*
+     * =====================================================
+     * CONFIG
+     * =====================================================
+     */
 
-	@Provides
-	QuestPrepConfig provideConfig(
-			ConfigManager configManager)
-	{
-		return configManager.getConfig(
-				QuestPrepConfig.class
-		);
-	}
+    @Provides
+    QuestPrepConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(QuestPrepConfig.class);
+    }
 }

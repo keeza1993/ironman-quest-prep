@@ -9,8 +9,7 @@ import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.gameval.ItemID;
 import net.runelite.api.gameval.ObjectID;
 
-public final class GatheringRouteBuilder
-{
+public final class GatheringRouteBuilder {
     /*
      * Latest player position supplied by the plugin.
      *
@@ -19,9 +18,7 @@ public final class GatheringRouteBuilder
      */
     private static volatile WorldPoint routeOrigin;
 
-    private GatheringRouteBuilder()
-    {
-    }
+    private GatheringRouteBuilder() {}
 
     /*
      * =====================================================
@@ -30,25 +27,14 @@ public final class GatheringRouteBuilder
      */
 
     public static List<GatheringStep> build(
-            List<RequiredItem> requirements,
-            BankTracker bankTracker)
-    {
-        WorldPoint origin =
-                routeOrigin;
+            List<RequiredItem> requirements, BankTracker bankTracker) {
+        WorldPoint origin = routeOrigin;
 
-        if (origin == null)
-        {
-            return buildBaseSteps(
-                    requirements,
-                    bankTracker
-            );
+        if (origin == null) {
+            return buildBaseSteps(requirements, bankTracker);
         }
 
-        return build(
-                requirements,
-                bankTracker,
-                origin
-        );
+        return build(requirements, bankTracker, origin);
     }
 
     /*
@@ -58,68 +44,39 @@ public final class GatheringRouteBuilder
      */
 
     public static List<GatheringStep> build(
-            List<RequiredItem> requirements,
-            BankTracker bankTracker,
-            WorldPoint playerLocation)
-    {
-        if (playerLocation != null)
-        {
-            routeOrigin =
-                    playerLocation;
+            List<RequiredItem> requirements, BankTracker bankTracker, WorldPoint playerLocation) {
+        if (playerLocation != null) {
+            routeOrigin = playerLocation;
         }
 
-        List<GatheringStep> baseSteps =
-                buildBaseSteps(
-                        requirements,
-                        bankTracker
-                );
+        List<GatheringStep> baseSteps = buildBaseSteps(requirements, bankTracker);
 
-        if (playerLocation == null
-                || baseSteps.isEmpty())
-        {
+        if (playerLocation == null || baseSteps.isEmpty()) {
             return baseSteps;
         }
 
-        List<GatheringStep> navigable =
-                new ArrayList<>();
+        List<GatheringStep> navigable = new ArrayList<>();
 
-        List<GatheringStep> unresolved =
-                new ArrayList<>();
+        List<GatheringStep> unresolved = new ArrayList<>();
 
-        for (GatheringStep step : baseSteps)
-        {
+        for (GatheringStep step : baseSteps) {
             if (step != null
                     && step.hasNavigationTarget()
                     && step.getTarget() != null
-                    && step.getTarget()
-                    .getWorldPoint() != null)
-            {
-                navigable.add(
-                        step
-                );
-            }
-            else
-            {
-                unresolved.add(
-                        step
-                );
+                    && step.getTarget().getWorldPoint() != null) {
+                navigable.add(step);
+            } else {
+                unresolved.add(step);
             }
         }
 
-        if (navigable.isEmpty())
-        {
+        if (navigable.isEmpty()) {
             return baseSteps;
         }
 
-        List<GatheringStep> ordered =
-                buildNearestRoute(
-                        navigable,
-                        playerLocation
-                );
+        List<GatheringStep> ordered = buildNearestRoute(navigable, playerLocation);
 
-        ordered.addAll(
-                unresolved
-        );
+        ordered.addAll(unresolved);
 
         return ordered;
     }
@@ -131,62 +88,36 @@ public final class GatheringRouteBuilder
      */
 
     private static List<GatheringStep> buildBaseSteps(
-            List<RequiredItem> requirements,
-            BankTracker bankTracker)
-    {
-        List<GatheringStep> steps =
-                new ArrayList<>();
+            List<RequiredItem> requirements, BankTracker bankTracker) {
+        List<GatheringStep> steps = new ArrayList<>();
 
-        if (requirements == null
-                || bankTracker == null)
-        {
+        if (requirements == null || bankTracker == null) {
             return steps;
         }
 
-        for (RequiredItem item : requirements)
-        {
-            if (item == null)
-            {
+        for (RequiredItem item : requirements) {
+            if (item == null) {
                 continue;
             }
 
-            int missing =
-                    item.getMissingQuantity(
-                            bankTracker
-                    );
+            int missing = item.getMissingQuantity(bankTracker);
 
-            if (missing <= 0)
-            {
+            if (missing <= 0) {
                 continue;
             }
 
-            AcquisitionRegion region =
-                    item.getRegion();
+            AcquisitionRegion region = item.getRegion();
 
-            if (region == null)
-            {
-                region =
-                        AcquisitionRegion.UNKNOWN;
+            if (region == null) {
+                region = AcquisitionRegion.UNKNOWN;
             }
 
-            String location =
-                    normaliseLocation(
-                            item,
-                            region
-                    );
+            String location = normaliseLocation(item, region);
 
-            String instruction =
-                    item.getBestMethod();
+            String instruction = item.getBestMethod();
 
-            if (instruction == null
-                    || instruction.trim().isEmpty())
-            {
-                instruction =
-                        "Obtain "
-                                + missing
-                                + " x "
-                                + item.getName()
-                                + ".";
+            if (instruction == null || instruction.trim().isEmpty()) {
+                instruction = "Obtain " + missing + " x " + item.getName() + ".";
             }
 
             GatheringStep baseStep =
@@ -197,38 +128,22 @@ public final class GatheringRouteBuilder
                             item.getItemIds(),
                             missing,
                             instruction,
-                            item.getMethodType()
-                    );
+                            item.getMethodType());
 
-            GatheringTarget target =
-                    GatheringTargetResolver.resolve(
-                            baseStep
-                    );
+            GatheringTarget target = GatheringTargetResolver.resolve(baseStep);
 
-            GatheringStep finalStep =
-                    baseStep.withTarget(
-                            target
-                    );
+            GatheringStep finalStep = baseStep.withTarget(target);
 
             /*
              * Convert known multi-action items into staged
              * acquisition routes.
              */
-            finalStep =
-                    applyMultiStageRoute(
-                            finalStep,
-                            item.getRequiredQuantity(),
-                            bankTracker
-                    );
+            finalStep = applyMultiStageRoute(finalStep, item.getRequiredQuantity(), bankTracker);
 
-            steps.add(
-                    finalStep
-            );
+            steps.add(finalStep);
         }
 
-        steps.sort(
-                baseComparator()
-        );
+        steps.sort(baseComparator());
 
         return steps;
     }
@@ -240,26 +155,18 @@ public final class GatheringRouteBuilder
      */
 
     private static GatheringStep applyMultiStageRoute(
-            GatheringStep step,
-            int totalRequired,
-            BankTracker bankTracker)
-    {
-        if (step == null)
-        {
+            GatheringStep step, int totalRequired, BankTracker bankTracker) {
+        if (step == null) {
             return null;
         }
 
         // A recipe must not replace an explicitly selected shop or spawn route.
         if (step.getMethodType() != AcquisitionInfo.MethodType.CRAFT
-                && step.getMethodType() != AcquisitionInfo.MethodType.GATHER)
-        {
+                && step.getMethodType() != AcquisitionInfo.MethodType.GATHER) {
             return step;
         }
 
-        String itemName =
-                safeText(
-                        step.getItemName()
-                );
+        String itemName = safeText(step.getItemName());
 
         /*
          * =================================================
@@ -276,42 +183,21 @@ public final class GatheringRouteBuilder
          * Stage 2:
          * Spin the remaining wool.
          */
-        if (itemName.equalsIgnoreCase(
-                "Ball of wool"))
-        {
-            int quantityRequired =
-                    Math.max(
-                            1,
-                            totalRequired
-                    );
+        if (itemName.equalsIgnoreCase("Ball of wool")) {
+            int quantityRequired = Math.max(1, totalRequired);
 
-            int[] finalItemIds =
-                    step.getItemIds();
+            int[] finalItemIds = step.getItemIds();
 
-            int[] woolOrBalls =
-                    combineIds(
-                            new int[]
-                                    {
-                                            ItemID.WOOL
-                                    },
-                            finalItemIds
-                    );
+            int[] woolOrBalls = combineIds(new int[] {ItemID.WOOL}, finalItemIds);
 
             GatheringStage shearStage =
                     new GatheringStage(
                             "Shear sheep",
                             "Shear sheep in the field north of Lumbridge until you have enough wool.",
                             GatheringTarget.area(
-                                    "Lumbridge sheep field",
-                                    new WorldPoint(
-                                            3201,
-                                            3268,
-                                            0
-                                    )
-                            ),
+                                    "Lumbridge sheep field", new WorldPoint(3201, 3268, 0)),
                             woolOrBalls,
-                            quantityRequired
-                    );
+                            quantityRequired);
 
             GatheringStage spinStage =
                     new GatheringStage(
@@ -320,28 +206,13 @@ public final class GatheringRouteBuilder
                             GatheringTarget.object(
                                     ObjectID.SPINNINGWHEEL,
                                     "Lumbridge Castle spinning wheel",
-                                    new WorldPoint(
-                                            3209,
-                                            3212,
-                                            1
-                                    )
-                            ),
+                                    new WorldPoint(3209, 3212, 1)),
                             finalItemIds,
-                            quantityRequired
-                    );
+                            quantityRequired);
 
-            GatheringStep staged =
-                    step.withStages(
-                            Arrays.asList(
-                                    shearStage,
-                                    spinStage
-                            )
-                    );
+            GatheringStep staged = step.withStages(Arrays.asList(shearStage, spinStage));
 
-            return exposeCurrentStage(
-                    staged,
-                    bankTracker
-            );
+            return exposeCurrentStage(staged, bankTracker);
         }
 
         /*
@@ -366,65 +237,34 @@ public final class GatheringRouteBuilder
          * Process the grain at Mill Lane Mill until the
          * final required quantity of Pot of flour is owned.
          */
-        if (itemName.equalsIgnoreCase(
-                "Pot of flour"))
-        {
-            int finalQuantityRequired =
-                    Math.max(
-                            1,
-                            totalRequired
-                    );
+        if (itemName.equalsIgnoreCase("Pot of flour")) {
+            int finalQuantityRequired = Math.max(1, totalRequired);
 
             /*
              * This is the number of NEW pots of flour that
              * still need to be produced right now.
              */
-            int productionQuantity =
-                    Math.max(
-                            1,
-                            step.getQuantityNeeded()
-                    );
+            int productionQuantity = Math.max(1, step.getQuantityNeeded());
 
-            int[] finalItemIds =
-                    step.getItemIds();
+            int[] finalItemIds = step.getItemIds();
 
             GatheringStage potStage =
                     new GatheringStage(
                             "Get empty pots",
                             "Get enough empty pots to collect the flour. Buy any missing pots from the Lumbridge General Store.",
                             GatheringTarget.area(
-                                    "Lumbridge General Store",
-                                    new WorldPoint(
-                                            3212,
-                                            3246,
-                                            0
-                                    )
-                            ),
-                            new int[]
-                                    {
-                                            ItemID.POT_EMPTY
-                                    },
-                            productionQuantity
-                    );
+                                    "Lumbridge General Store", new WorldPoint(3212, 3246, 0)),
+                            new int[] {ItemID.POT_EMPTY},
+                            productionQuantity);
 
             GatheringStage grainStage =
                     new GatheringStage(
                             "Pick grain",
                             "Pick enough wheat from the field beside Mill Lane Mill.",
                             GatheringTarget.area(
-                                    "Lumbridge wheat field",
-                                    new WorldPoint(
-                                            3161,
-                                            3292,
-                                            0
-                                    )
-                            ),
-                            new int[]
-                                    {
-                                            ItemID.GRAIN
-                                    },
-                            productionQuantity
-                    );
+                                    "Lumbridge wheat field", new WorldPoint(3161, 3292, 0)),
+                            new int[] {ItemID.GRAIN},
+                            productionQuantity);
 
             GatheringPrerequisite emptyPotPrerequisite =
                     new GatheringPrerequisite(
@@ -432,8 +272,7 @@ public final class GatheringRouteBuilder
                             ItemID.POT_EMPTY,
                             productionQuantity,
                             "You need one empty pot for each remaining pot of flour.",
-                            true
-                    );
+                            true);
 
             GatheringPrerequisite grainPrerequisite =
                     new GatheringPrerequisite(
@@ -441,42 +280,20 @@ public final class GatheringRouteBuilder
                             ItemID.GRAIN,
                             productionQuantity,
                             "You need one grain for each remaining pot of flour.",
-                            true
-                    );
+                            true);
 
             GatheringStage millStage =
                     new GatheringStage(
                             "Make flour",
                             "Take the grain upstairs, fill the hopper, operate the controls, then return downstairs and collect the flour using the empty pots.",
-                            GatheringTarget.area(
-                                    "Mill Lane Mill",
-                                    new WorldPoint(
-                                            3166,
-                                            3306,
-                                            0
-                                    )
-                            ),
+                            GatheringTarget.area("Mill Lane Mill", new WorldPoint(3166, 3306, 0)),
                             finalItemIds,
                             finalQuantityRequired,
-                            Arrays.asList(
-                                    emptyPotPrerequisite,
-                                    grainPrerequisite
-                            )
-                    );
+                            Arrays.asList(emptyPotPrerequisite, grainPrerequisite));
 
-            GatheringStep staged =
-                    step.withStages(
-                            Arrays.asList(
-                                    potStage,
-                                    grainStage,
-                                    millStage
-                            )
-                    );
+            GatheringStep staged = step.withStages(Arrays.asList(potStage, grainStage, millStage));
 
-            return exposeCurrentStage(
-                    staged,
-                    bankTracker
-            );
+            return exposeCurrentStage(staged, bankTracker);
         }
 
         return step;
@@ -494,56 +311,33 @@ public final class GatheringRouteBuilder
      * currently-active stage is exposed as the step's normal
      * target and instruction.
      */
-    private static GatheringStep exposeCurrentStage(
-            GatheringStep staged,
-            BankTracker bankTracker)
-    {
-        if (staged == null)
-        {
+    private static GatheringStep exposeCurrentStage(GatheringStep staged, BankTracker bankTracker) {
+        if (staged == null) {
             return null;
         }
 
-        GatheringStage currentStage =
-                staged.getCurrentStage(
-                        bankTracker
-                );
+        GatheringStage currentStage = staged.getCurrentStage(bankTracker);
 
-        if (currentStage == null)
-        {
+        if (currentStage == null) {
             return staged;
         }
 
-        String stageInstruction =
-                currentStage.getName()
-                        + ": "
-                        + currentStage.getInstruction();
+        String stageInstruction = currentStage.getName() + ": " + currentStage.getInstruction();
 
-        if (currentStage.hasCompletionRequirement())
-        {
+        if (currentStage.hasCompletionRequirement()) {
             stageInstruction +=
                     " ["
-                            + currentStage.getOwnedQuantity(
-                            bankTracker
-                    )
+                            + currentStage.getOwnedQuantity(bankTracker)
                             + "/"
                             + currentStage.getCompletionQuantity()
                             + "]";
         }
 
-        if (currentStage.hasPrerequisites())
-        {
-            String prerequisiteText =
-                    currentStage.getPrerequisiteStatusText(
-                            bankTracker
-                    );
+        if (currentStage.hasPrerequisites()) {
+            String prerequisiteText = currentStage.getPrerequisiteStatusText(bankTracker);
 
-            if (prerequisiteText != null
-                    && !prerequisiteText.isEmpty())
-            {
-                stageInstruction +=
-                        " Requires: "
-                                + prerequisiteText
-                                + ".";
+            if (prerequisiteText != null && !prerequisiteText.isEmpty()) {
+                stageInstruction += " Requires: " + prerequisiteText + ".";
             }
         }
 
@@ -556,8 +350,7 @@ public final class GatheringRouteBuilder
                 stageInstruction,
                 staged.getMethodType(),
                 currentStage.getTarget(),
-                staged.getStages()
-        );
+                staged.getStages());
     }
 
     /*
@@ -566,77 +359,44 @@ public final class GatheringRouteBuilder
      * =====================================================
      */
 
-    private static int[] combineIds(
-            int[] first,
-            int[] second)
-    {
-        int firstLength =
-                first == null
-                        ? 0
-                        : first.length;
+    private static int[] combineIds(int[] first, int[] second) {
+        int firstLength = first == null ? 0 : first.length;
 
-        int secondLength =
-                second == null
-                        ? 0
-                        : second.length;
+        int secondLength = second == null ? 0 : second.length;
 
-        int[] combined =
-                new int[
-                        firstLength
-                                + secondLength
-                        ];
+        int[] combined = new int[firstLength + secondLength];
 
-        int index =
-                0;
+        int index = 0;
 
-        if (first != null)
-        {
-            for (int id : first)
-            {
-                combined[index++] =
-                        id;
+        if (first != null) {
+            for (int id : first) {
+                combined[index++] = id;
             }
         }
 
-        if (second != null)
-        {
-            for (int id : second)
-            {
-                boolean duplicate =
-                        false;
+        if (second != null) {
+            for (int id : second) {
+                boolean duplicate = false;
 
-                for (int i = 0;
-                     i < index;
-                     i++)
-                {
-                    if (combined[i]
-                            == id)
-                    {
-                        duplicate =
-                                true;
+                for (int i = 0; i < index; i++) {
+                    if (combined[i] == id) {
+                        duplicate = true;
 
                         break;
                     }
                 }
 
-                if (!duplicate)
-                {
-                    combined[index++] =
-                            id;
+                if (!duplicate) {
+                    combined[index++] = id;
                 }
             }
         }
 
-        if (index
-                == combined.length)
-        {
+        if (index == combined.length) {
             return combined;
         }
 
-        return Arrays.copyOf(
-                combined,
-                index
-        );
+        return Arrays.copyOf(combined, index);
     }
 
     /*
@@ -646,113 +406,64 @@ public final class GatheringRouteBuilder
      */
 
     private static List<GatheringStep> buildNearestRoute(
-            List<GatheringStep> input,
-            WorldPoint startPoint)
-    {
-        List<GatheringStep> remaining =
-                new ArrayList<>(
-                        input
-                );
+            List<GatheringStep> input, WorldPoint startPoint) {
+        List<GatheringStep> remaining = new ArrayList<>(input);
 
-        List<GatheringStep> ordered =
-                new ArrayList<>();
+        List<GatheringStep> ordered = new ArrayList<>();
 
-        WorldPoint currentPoint =
-                startPoint;
+        WorldPoint currentPoint = startPoint;
 
-        while (!remaining.isEmpty())
-        {
-            GatheringStep nearest =
-                    findNearestStep(
-                            remaining,
-                            currentPoint
-                    );
+        while (!remaining.isEmpty()) {
+            GatheringStep nearest = findNearestStep(remaining, currentPoint);
 
-            if (nearest == null)
-            {
+            if (nearest == null) {
                 break;
             }
 
-            ordered.add(
-                    nearest
-            );
+            ordered.add(nearest);
 
-            remaining.remove(
-                    nearest
-            );
+            remaining.remove(nearest);
 
-            WorldPoint targetPoint =
-                    nearest
-                            .getTarget()
-                            .getWorldPoint();
+            WorldPoint targetPoint = nearest.getTarget().getWorldPoint();
 
-            if (targetPoint != null)
-            {
-                currentPoint =
-                        targetPoint;
+            if (targetPoint != null) {
+                currentPoint = targetPoint;
             }
         }
 
-        ordered.addAll(
-                remaining
-        );
+        ordered.addAll(remaining);
 
         return ordered;
     }
 
-    private static GatheringStep findNearestStep(
-            List<GatheringStep> steps,
-            WorldPoint from)
-    {
-        GatheringStep best =
-                null;
+    private static GatheringStep findNearestStep(List<GatheringStep> steps, WorldPoint from) {
+        GatheringStep best = null;
 
-        long bestDistance =
-                Long.MAX_VALUE;
+        long bestDistance = Long.MAX_VALUE;
 
-        for (GatheringStep step : steps)
-        {
-            if (step == null
-                    || step.getTarget() == null)
-            {
+        for (GatheringStep step : steps) {
+            if (step == null || step.getTarget() == null) {
                 continue;
             }
 
-            WorldPoint destination =
-                    step.getTarget()
-                            .getWorldPoint();
+            WorldPoint destination = step.getTarget().getWorldPoint();
 
-            if (destination == null)
-            {
+            if (destination == null) {
                 continue;
             }
 
-            long distance =
-                    distanceScore(
-                            from,
-                            destination
-                    );
+            long distance = distanceScore(from, destination);
 
-            if (distance < bestDistance)
-            {
-                best =
-                        step;
+            if (distance < bestDistance) {
+                best = step;
 
-                bestDistance =
-                        distance;
+                bestDistance = distance;
 
                 continue;
             }
 
-            if (distance == bestDistance
-                    && best != null
-                    && compareSteps(
-                    step,
-                    best
-            ) < 0)
-            {
-                best =
-                        step;
+            if (distance == bestDistance && best != null && compareSteps(step, best) < 0) {
+                best = step;
             }
         }
 
@@ -765,39 +476,19 @@ public final class GatheringRouteBuilder
      * =====================================================
      */
 
-    private static long distanceScore(
-            WorldPoint first,
-            WorldPoint second)
-    {
-        if (first == null
-                || second == null)
-        {
+    private static long distanceScore(WorldPoint first, WorldPoint second) {
+        if (first == null || second == null) {
             return Long.MAX_VALUE;
         }
 
-        long deltaX =
-                Math.abs(
-                        (long) first.getX()
-                                - second.getX()
-                );
+        long deltaX = Math.abs((long) first.getX() - second.getX());
 
-        long deltaY =
-                Math.abs(
-                        (long) first.getY()
-                                - second.getY()
-                );
+        long deltaY = Math.abs((long) first.getY() - second.getY());
 
-        long distance =
-                Math.max(
-                        deltaX,
-                        deltaY
-                );
+        long distance = Math.max(deltaX, deltaY);
 
-        if (first.getPlane()
-                != second.getPlane())
-        {
-            distance +=
-                    10000L;
+        if (first.getPlane() != second.getPlane()) {
+            distance += 10000L;
         }
 
         return distance;
@@ -809,63 +500,34 @@ public final class GatheringRouteBuilder
      * =====================================================
      */
 
-    private static Comparator<GatheringStep> baseComparator()
-    {
-        return new Comparator<GatheringStep>()
-        {
+    private static Comparator<GatheringStep> baseComparator() {
+        return new Comparator<GatheringStep>() {
             @Override
-            public int compare(
-                    GatheringStep first,
-                    GatheringStep second)
-            {
-                return compareSteps(
-                        first,
-                        second
-                );
+            public int compare(GatheringStep first, GatheringStep second) {
+                return compareSteps(first, second);
             }
         };
     }
 
-    private static int compareSteps(
-            GatheringStep first,
-            GatheringStep second)
-    {
+    private static int compareSteps(GatheringStep first, GatheringStep second) {
         int regionCompare =
                 Integer.compare(
-                        first.getRegion()
-                                .getSortOrder(),
-                        second.getRegion()
-                                .getSortOrder()
-                );
+                        first.getRegion().getSortOrder(), second.getRegion().getSortOrder());
 
-        if (regionCompare != 0)
-        {
+        if (regionCompare != 0) {
             return regionCompare;
         }
 
         int locationCompare =
                 String.CASE_INSENSITIVE_ORDER.compare(
-                        safeText(
-                                first.getLocation()
-                        ),
-                        safeText(
-                                second.getLocation()
-                        )
-                );
+                        safeText(first.getLocation()), safeText(second.getLocation()));
 
-        if (locationCompare != 0)
-        {
+        if (locationCompare != 0) {
             return locationCompare;
         }
 
         return String.CASE_INSENSITIVE_ORDER.compare(
-                safeText(
-                        first.getItemName()
-                ),
-                safeText(
-                        second.getItemName()
-                )
-        );
+                safeText(first.getItemName()), safeText(second.getItemName()));
     }
 
     /*
@@ -874,39 +536,25 @@ public final class GatheringRouteBuilder
      * =====================================================
      */
 
-    private static String normaliseLocation(
-            RequiredItem item,
-            AcquisitionRegion region)
-    {
-        String location =
-                item.getLocation();
+    private static String normaliseLocation(RequiredItem item, AcquisitionRegion region) {
+        String location = item.getLocation();
 
-        if (location != null
-                && !location.trim().isEmpty())
-        {
+        if (location != null && !location.trim().isEmpty()) {
             return location.trim();
         }
 
-        if (region
-                == AcquisitionRegion.UNKNOWN)
-        {
+        if (region == AcquisitionRegion.UNKNOWN) {
             return "Unresearched items";
         }
 
-        if (region
-                == AcquisitionRegion.ANYWHERE)
-        {
+        if (region == AcquisitionRegion.ANYWHERE) {
             return "Any suitable location";
         }
 
         return "General / multiple locations";
     }
 
-    private static String safeText(
-            String value)
-    {
-        return value == null
-                ? ""
-                : value.trim();
+    private static String safeText(String value) {
+        return value == null ? "" : value.trim();
     }
 }
