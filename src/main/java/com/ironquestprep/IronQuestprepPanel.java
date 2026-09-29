@@ -61,6 +61,7 @@ public class IronQuestprepPanel extends PluginPanel
 
     private final JButton checklistModeButton;
     private final JButton routeModeButton;
+    private final JButton skillsModeButton;
 
     private final JPanel itemList;
 
@@ -128,6 +129,9 @@ public class IronQuestprepPanel extends PluginPanel
                         "<html><b>Ironman Quest Prep</b></html>"
                 );
 
+        title.setIcon(new javax.swing.ImageIcon(QuestIcon.create()));
+        title.setIconTextGap(6);
+
         title.setForeground(
                 Color.WHITE
         );
@@ -187,7 +191,7 @@ public class IronQuestprepPanel extends PluginPanel
         modePanel.setLayout(
                 new BoxLayout(
                         modePanel,
-                        BoxLayout.X_AXIS
+                        BoxLayout.Y_AXIS
                 )
         );
 
@@ -253,7 +257,7 @@ public class IronQuestprepPanel extends PluginPanel
         );
 
         modePanel.add(
-                Box.createHorizontalStrut(
+                Box.createVerticalStrut(
                         8
                 )
         );
@@ -262,8 +266,8 @@ public class IronQuestprepPanel extends PluginPanel
                 routeModeButton
         );
 
-        JButton skillsButton = createModeButton("Quest Cape Skills");
-        skillsButton.addActionListener(event -> { skillsMode = true; updateModeButtons(); renderCurrentView(); });
+        skillsModeButton = createModeButton("Quest Cape Skills");
+        skillsModeButton.addActionListener(event -> { skillsMode = true; updateModeButtons(); renderCurrentView(); });
 
         updateModeButtons();
 
@@ -321,7 +325,23 @@ public class IronQuestprepPanel extends PluginPanel
         content.add(
                 modePanel
         );
-        content.add(skillsButton);
+        modePanel.add(Box.createVerticalStrut(8));
+        modePanel.add(skillsModeButton);
+        JButton reportBug = createModeButton("Report a bug (Discord)");
+        reportBug.setEnabled(SupportLinks.isAvailable());
+        reportBug.setToolTipText(SupportLinks.isAvailable()
+                ? "Open our Discord server for bugs and fixes"
+                : "Discord bug reporting will be available once the server invite is configured.");
+        reportBug.addActionListener(event -> SupportLinks.openBugReport());
+        content.add(Box.createVerticalStrut(8));
+        content.add(reportBug);
+        if (!SupportLinks.isAvailable())
+        {
+            JLabel unavailable = new JLabel("Discord link coming soon");
+            unavailable.setForeground(MUTED_GRAY);
+            unavailable.setAlignmentX(Component.LEFT_ALIGNMENT);
+            content.add(unavailable);
+        }
 
         content.add(
                 itemList
@@ -356,51 +376,35 @@ public class IronQuestprepPanel extends PluginPanel
      * =====================================================
      */
 
-    private JButton createModeButton(
-            String text)
+    private JButton createModeButton(String text)
     {
-        JButton button =
-                new JButton(
-                        text
-                );
-
-        button.setFocusPainted(
-                false
-        );
-
-        button.setContentAreaFilled(
-                false
-        );
-
-        button.setOpaque(
-                false
-        );
-
-        button.setBorder(
-                BorderFactory.createEmptyBorder(
-                        4,
-                        2,
-                        4,
-                        2
-                )
-        );
-
+        JButton button = new JButton(text);
+        button.setAlignmentX(Component.LEFT_ALIGNMENT);
+        button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
+        button.setPreferredSize(new Dimension(205, 36));
+        button.setMinimumSize(new Dimension(140, 36));
+        button.setFocusPainted(true);
+        button.setContentAreaFilled(true);
+        button.setOpaque(true);
+        styleModeButton(button, false);
         return button;
+    }
+
+    private void styleModeButton(JButton button, boolean selected)
+    {
+        button.setSelected(selected);
+        button.setBackground(selected ? new Color(100, 39, 75) : new Color(58, 58, 63));
+        button.setForeground(Color.WHITE);
+        button.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(selected ? PINK : new Color(105, 105, 112), 2),
+                BorderFactory.createEmptyBorder(6, 8, 6, 8)));
     }
 
     private void updateModeButtons()
     {
-        checklistModeButton.setForeground(
-                (routeMode || skillsMode)
-                        ? MUTED_GRAY
-                        : PINK
-        );
-
-        routeModeButton.setForeground(
-                (routeMode && !skillsMode)
-                        ? PINK
-                        : MUTED_GRAY
-        );
+        styleModeButton(checklistModeButton, !routeMode && !skillsMode);
+        styleModeButton(routeModeButton, routeMode && !skillsMode);
+        styleModeButton(skillsModeButton, skillsMode);
     }
 
     /*
@@ -1006,6 +1010,9 @@ public class IronQuestprepPanel extends PluginPanel
                                 + step.getQuantityNeeded()
                                 + "</html>"
                 );
+
+        title.setIcon(new javax.swing.ImageIcon(QuestIcon.create()));
+        title.setIconTextGap(6);
 
         title.setForeground(
                 Color.WHITE

@@ -1,6 +1,8 @@
 package com.ironquestprep;
 
 import java.awt.BasicStroke;
+import java.awt.AlphaComposite;
+import java.awt.geom.Ellipse2D;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
@@ -75,6 +77,8 @@ public class RouteGuidanceOverlay extends Overlay
                     147,
                     45
             );
+
+    private static final Color ROUTE_BLUE = new Color(95, 180, 255);
 
     private static final Color WHITE =
             Color.WHITE;
@@ -555,75 +559,51 @@ public class RouteGuidanceOverlay extends Overlay
         {
             return;
         }
-        WorldPoint destination = navigationPoint(target);
-        LocalPoint local = LocalPoint.fromWorld(client, destination.getX(), destination.getY());
-        if (local == null || !drawMinimapMarker(graphics, local))
+        Rectangle bounds = minimapBounds();
+        if (bounds == null) return;
+        Graphics2D minimap = (Graphics2D) graphics.create();
+        try
         {
-            drawDistantMinimapArrow(graphics, destination);
+            double diameter = Math.min(bounds.width, bounds.height);
+            minimap.clip(new Ellipse2D.Double(bounds.getCenterX() - diameter / 2,
+                    bounds.getCenterY() - diameter / 2, diameter, diameter));
+            minimap.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,
+                    minimapArrowOpacity(System.nanoTime() / 1_000_000L, config.flashMinimapArrow())));
+            WorldPoint destination = navigationPoint(target);
+            LocalPoint local = LocalPoint.fromWorld(client, destination.getX(), destination.getY());
+            if (local == null || !drawMinimapMarker(minimap, local))
+                drawDistantMinimapArrow(minimap, destination);
+        }
+        finally
+        {
+            minimap.dispose();
         }
     }
 
+    static float minimapArrowOpacity(long milliseconds, boolean flash)
+    {
+        if (!flash) return 1f;
+        // One smooth pulse per second; never disappear completely.
+        double phase = Math.floorMod(milliseconds, 1000L) / 1000.0;
+        return (float) (0.7 + 0.3 * Math.cos(phase * 2 * Math.PI));
+    }
     private WorldPoint navigationPoint(GatheringTarget target)
     {
         NPC npc = target.getType() == GatheringTarget.TargetType.NPC ? findTargetNpc(target) : null;
         return npc == null ? target.getWorldPoint() : npc.getWorldLocation();
     }
 
-    private boolean drawMinimapMarker(
-            Graphics2D graphics,
-            LocalPoint localPoint)
+    private boolean drawMinimapMarker(Graphics2D graphics, LocalPoint localPoint)
     {
-        Point minimapPoint =
-                Perspective.localToMinimap(
-                        client,
-                        localPoint
-                );
-
-        if (minimapPoint == null || !insideMinimap(minimapPoint, minimapBounds(), 8))
-        {
-            return false;
-        }
-
-        OverlayUtil.renderMinimapLocation(
-                graphics,
-                minimapPoint,
-                PINK
-        );
-
-        Color previousColor =
-                graphics.getColor();
-
-        Stroke previousStroke =
-                graphics.getStroke();
-
-        graphics.setColor(
-                PINK
-        );
-
-        graphics.setStroke(
-                new BasicStroke(
-                        2.0f
-                )
-        );
-
-        graphics.drawOval(
-                minimapPoint.getX() - 6,
-                minimapPoint.getY() - 6,
-                12,
-                12
-        );
-
-        graphics.setStroke(
-                previousStroke
-        );
-
-        graphics.setColor(
-                previousColor
-        );
-
+        Point destination = Perspective.localToMinimap(client, localPoint);
+        if (!insideMinimap(destination, minimapBounds(), 18)) return false;
+        Point origin = Perspective.localToMinimap(client, client.getLocalPlayer().getLocalLocation());
+        if (origin == null) return false;
+        if (origin.getX() == destination.getX() && origin.getY() == destination.getY())
+            origin = new Point(destination.getX(), destination.getY() - 16);
+        drawMinimapArrowHead(graphics, origin, destination);
         return true;
     }
-
     /*
      * =====================================================
      * DISTANT MINIMAP ARROW
@@ -1050,7 +1030,7 @@ public class RouteGuidanceOverlay extends Overlay
                 ),
                 "Route: "
                         + targetName,
-                PINK
+                ROUTE_BLUE
         );
 
         OverlayUtil.renderTextLocation(
@@ -1062,7 +1042,7 @@ public class RouteGuidanceOverlay extends Overlay
                 activeStep.getItemName()
                         + " - Need "
                         + activeStep.getQuantityNeeded(),
-                WHITE
+                ROUTE_BLUE
         );
 
         ActiveStageInfo stageInfo =
@@ -1081,7 +1061,7 @@ public class RouteGuidanceOverlay extends Overlay
                     buildStageText(
                             stageInfo
                     ),
-                    PINK
+                    ROUTE_BLUE
             );
 
             directionY =
@@ -1105,20 +1085,10 @@ public class RouteGuidanceOverlay extends Overlay
                         + (targetWorldPoint.getPlane() == playerWorldPoint.getPlane()
                         ? "" : " | Go " + (targetWorldPoint.getPlane() > playerWorldPoint.getPlane()
                         ? "up" : "down") + " to floor " + targetWorldPoint.getPlane()),
-                PINK
+                ROUTE_BLUE
         );
 
-        if (client.isInInstancedRegion())
-        {
-            return;
-        }
 
-        drawDirectionArrow(
-                graphics,
-                deltaX,
-                deltaY,
-                stageInfo != null
-        );
     }
 
     /*
@@ -1325,167 +1295,6 @@ public class RouteGuidanceOverlay extends Overlay
     /*
      * =====================================================
      * DIRECTION ARROW
-     * =====================================================
-     */
-
-    private void drawDirectionArrow(
-            Graphics2D graphics,
-            int deltaX,
-            int deltaY,
-            boolean stageLineVisible)
-    {
-        if (deltaX == 0
-                && deltaY == 0)
-        {
-            return;
-        }
-
-        double length =
-                Math.sqrt(
-                        (double) deltaX * deltaX
-                                + (double) deltaY * deltaY
-                );
-
-        if (length <= 0)
-        {
-            return;
-        }
-
-        double angleRadians = (client.getCameraYawTarget() & 0x3fff) * Math.PI / 8192.0;
-        double unitX = (deltaX * Math.cos(angleRadians) + deltaY * Math.sin(angleRadians)) / length;
-        double unitY = (deltaX * Math.sin(angleRadians) - deltaY * Math.cos(angleRadians)) / length;
-
-        int centreX =
-                175;
-
-        int centreY =
-                stageLineVisible
-                        ? 74
-                        : 58;
-
-        int arrowLength =
-                20;
-
-        int endX =
-                centreX
-                        + (int) Math.round(
-                        unitX
-                                * arrowLength
-                );
-
-        int endY =
-                centreY
-                        + (int) Math.round(
-                        unitY
-                                * arrowLength
-                );
-
-        Stroke previousStroke =
-                graphics.getStroke();
-
-        Color previousColor =
-                graphics.getColor();
-
-        graphics.setStroke(
-                new BasicStroke(
-                        3.0f
-                )
-        );
-
-        graphics.setColor(
-                PINK
-        );
-
-        graphics.drawLine(
-                centreX,
-                centreY,
-                endX,
-                endY
-        );
-
-        double angle =
-                Math.atan2(
-                        endY - centreY,
-                        endX - centreX
-                );
-
-        int headLength =
-                7;
-
-        double leftAngle =
-                angle
-                        + Math.toRadians(
-                        150
-                );
-
-        double rightAngle =
-                angle
-                        - Math.toRadians(
-                        150
-                );
-
-        int leftX =
-                endX
-                        + (int) Math.round(
-                        Math.cos(
-                                leftAngle
-                        )
-                                * headLength
-                );
-
-        int leftY =
-                endY
-                        + (int) Math.round(
-                        Math.sin(
-                                leftAngle
-                        )
-                                * headLength
-                );
-
-        int rightX =
-                endX
-                        + (int) Math.round(
-                        Math.cos(
-                                rightAngle
-                        )
-                                * headLength
-                );
-
-        int rightY =
-                endY
-                        + (int) Math.round(
-                        Math.sin(
-                                rightAngle
-                        )
-                                * headLength
-                );
-
-        graphics.drawLine(
-                endX,
-                endY,
-                leftX,
-                leftY
-        );
-
-        graphics.drawLine(
-                endX,
-                endY,
-                rightX,
-                rightY
-        );
-
-        graphics.setStroke(
-                previousStroke
-        );
-
-        graphics.setColor(
-                previousColor
-        );
-    }
-
-    /*
-     * =====================================================
-     * TARGET TILE
      * =====================================================
      */
 

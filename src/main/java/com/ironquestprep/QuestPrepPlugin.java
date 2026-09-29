@@ -119,32 +119,7 @@ public class QuestPrepPlugin extends Plugin
 				step -> clientThread.invokeLater(() -> selectRouteStep(step))
 		);
 
-		BufferedImage icon =
-				new BufferedImage(
-						32,
-						32,
-						BufferedImage.TYPE_INT_ARGB
-				);
-
-		Graphics2D graphics =
-				icon.createGraphics();
-
-		graphics.setColor(
-				new Color(
-						255,
-						20,
-						147
-				)
-		);
-
-		graphics.fillRect(
-				0,
-				0,
-				32,
-				32
-		);
-
-		graphics.dispose();
+		BufferedImage icon = QuestIcon.create();
 
 		navButton =
 				NavigationButton.builder()
