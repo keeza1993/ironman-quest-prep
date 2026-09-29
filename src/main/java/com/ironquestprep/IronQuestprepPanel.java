@@ -55,6 +55,8 @@ public class IronQuestprepPanel extends PluginPanel {
      */
     private boolean routeMode = false;
     private boolean skillsMode;
+    private boolean panelActive;
+    private QuestSkillPlanner.Plan latestPlan;
     private final QuestSkillsPanel skillsPanel = new QuestSkillsPanel();
 
     /*
@@ -284,6 +286,7 @@ public class IronQuestprepPanel extends PluginPanel {
 
                     currentRequiredItems = new ArrayList<>();
 
+                    latestPlan = null;
                     skillsPanel.setPlan(null);
                     expandedRegions.clear();
 
@@ -329,14 +332,26 @@ public class IronQuestprepPanel extends PluginPanel {
     public void updateSkills(QuestSkillPlanner.Plan plan) {
         SwingUtilities.invokeLater(
                 () -> {
-                    skillsPanel.setPlan(plan);
+                    latestPlan = plan;
                     if (skillsMode) renderCurrentView();
                 });
     }
 
+    @Override
+    public void onActivate() {
+        SwingUtilities.invokeLater(() -> { panelActive = true; renderCurrentView(); });
+    }
+
+    @Override
+    public void onDeactivate() {
+        SwingUtilities.invokeLater(() -> panelActive = false);
+    }
+
     private void renderCurrentView() {
+        if (!panelActive) return;
         itemList.removeAll();
         if (skillsMode) {
+            skillsPanel.setPlan(latestPlan);
             itemList.add(skillsPanel);
             itemList.revalidate();
             itemList.repaint();

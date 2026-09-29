@@ -70,21 +70,21 @@ public class QuestGroundItemOverlay extends Overlay
          * Ground-item highlighting is completely
          * independent from route guidance.
          */
-        if (!config.showGroundMarkers())
+        if (!config.showGroundMarkers() || !plugin.hasGroundItemLabels())
         {
             return null;
         }
 
+        Set<Integer> renderedIds = new HashSet<>();
         for (Tile tile
                 : plugin.getGroundItemTiles())
         {
-            if (tile == null)
+            if (tile == null || tile.getPlane() != client.getPlane() || tile.getGroundItems() == null)
             {
                 continue;
             }
 
-            Set<Integer> renderedIds =
-                    new HashSet<>();
+            renderedIds.clear();
 
             int textOffset = 0;
             boolean tileHighlighted = false;

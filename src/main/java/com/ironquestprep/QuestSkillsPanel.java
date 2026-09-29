@@ -41,6 +41,7 @@ final class QuestSkillsPanel extends JPanel
 
     void setPlan(QuestSkillPlanner.Plan snapshot)
     {
+        if (snapshot == plan) return;
         if (snapshot == null) expanded.clear();
         plan = snapshot;
         render();

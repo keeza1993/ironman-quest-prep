@@ -76,7 +76,7 @@ final class QuestSkillPlanner
 
     private static final List<QuestData> DATA = GeneratedQuestSkills.load();
 
-    static Plan snapshot(Client client)
+    private static Input capture(Client client)
     {
         Map<Skill, Long> xp = new EnumMap<>(Skill.class);
         for (Skill skill : Skill.values())
@@ -101,10 +101,49 @@ final class QuestSkillPlanner
                 unavailable.add(data.id);
             }
         }
-        Plan plan = calculate(supported, xp, finished, started, client.getVarpValue(VarPlayerID.QP));
-        plan.unavailable.addAll(unavailable);
-        return plan;
+        return new Input(supported, xp, finished, started,
+                client.getVarpValue(VarPlayerID.QP), unavailable);
     }
+
+    static final class Input {
+        final List<QuestData> data;
+        final Map<Skill, Long> xp;
+        final Set<String> finished, started;
+        final int points;
+        final List<String> unavailable;
+        Input(List<QuestData> data, Map<Skill, Long> xp, Set<String> finished,
+              Set<String> started, int points, List<String> unavailable) {
+            this.data = data; this.xp = new EnumMap<>(xp);
+            this.finished = new HashSet<>(finished); this.started = new HashSet<>(started);
+            this.points = points; this.unavailable = new ArrayList<>(unavailable);
+        }
+        boolean same(Input other) {
+            return other != null && points == other.points && xp.equals(other.xp)
+                    && finished.equals(other.finished) && started.equals(other.started)
+                    && unavailable.equals(other.unavailable) && data.equals(other.data);
+        }
+        Plan calculate() {
+            Plan plan = QuestSkillPlanner.calculate(data, xp, finished, started, points);
+            plan.unavailable.addAll(unavailable);
+            return plan;
+        }
+    }
+
+    static final class Cache {
+        private Input previous;
+        private Plan plan;
+        Plan snapshot(Client client) { return update(capture(client)); }
+        Plan update(Input input) {
+            if (!input.same(previous)) {
+                plan = input.calculate();
+                previous = input;
+            }
+            return plan;
+        }
+        void clear() { previous = null; plan = null; }
+    }
+
+    static Plan snapshot(Client client) { return capture(client).calculate(); }
 
     static Plan calculate(List<QuestData> data, Map<Skill, Long> current,
                           Set<String> finished, Set<String> started, int questPoints)

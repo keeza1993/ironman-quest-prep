@@ -72,6 +72,8 @@ public final class QuestItemDatabase {
 
         for (QuestData data : result.values()) {
             buildRoots(data);
+            for (GeneratedQuestData.RawItem raw : data.items.values())
+                data.converted.put(raw.getVariable(), convertItem(data.helperName, raw));
         }
 
         return result;
@@ -170,7 +172,7 @@ public final class QuestItemDatabase {
             GeneratedQuestData.RawItem item = data.items.get(key);
 
             if (item != null) {
-                RequiredItem converted = convertItem(data.helperName, item);
+                RequiredItem converted = data.converted.get(item.getVariable());
 
                 if (converted != null
                         && PrepAvailability.canGather(item, converted, bankTracker, progress)) {
@@ -580,6 +582,7 @@ public final class QuestItemDatabase {
     }
 
     private static final class QuestData {
+        private final Map<String, RequiredItem> converted = new LinkedHashMap<>();
         private final String helperName;
 
         private final Map<String, GeneratedQuestData.RawItem> items = new LinkedHashMap<>();

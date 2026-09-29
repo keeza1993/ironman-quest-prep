@@ -1,13 +1,10 @@
 package com.ironquestprep;
 
 import com.google.inject.Provides;
-import java.awt.Color;
-import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -71,6 +68,10 @@ public class QuestPrepPlugin extends Plugin {
 
     private long lastAccountHash = -1L;
 
+    private final GroundItemLabels groundLabels = new GroundItemLabels();
+    private final QuestSkillPlanner.Cache skillPlanCache = new QuestSkillPlanner.Cache();
+    private QuestSkillPlanner.Plan displayedPlan;
+    private boolean ownershipDirty;
     private boolean questProgressDirty;
     private boolean skillsDirty = true;
     private int lastSkillsRefreshTick = -10;
@@ -79,6 +80,10 @@ public class QuestPrepPlugin extends Plugin {
     @Override
     protected void startUp() {
         bankTracker.clear();
+        groundLabels.clear();
+        skillPlanCache.clear();
+        displayedPlan = null;
+        ownershipDirty = false;
         skillsDirty = true;
         lastSkillsRefreshTick = -10;
 
@@ -166,6 +171,10 @@ public class QuestPrepPlugin extends Plugin {
 
         if (lastAccountHash != -1L && currentAccountHash != lastAccountHash) {
             bankTracker.clear();
+            groundLabels.clear();
+            skillPlanCache.clear();
+            displayedPlan = null;
+            ownershipDirty = false;
 
             activeRequirements = Collections.emptyList();
 
@@ -201,7 +210,7 @@ public class QuestPrepPlugin extends Plugin {
         if (containerId == InventoryID.BANK) {
             bankTracker.scanBank(event.getItemContainer());
 
-            refreshChecklist();
+            ownershipDirty = true;
 
             return;
         }
@@ -213,7 +222,7 @@ public class QuestPrepPlugin extends Plugin {
             bankTracker.scanGroupStorage(event.getItemContainer());
 
             if (bankTracker.hasScannedBank()) {
-                refreshChecklist();
+                ownershipDirty = true;
             }
 
             return;
@@ -228,7 +237,7 @@ public class QuestPrepPlugin extends Plugin {
             bankTracker.scanInventory(event.getItemContainer());
 
             if (bankTracker.hasScannedBank()) {
-                refreshChecklist();
+                ownershipDirty = true;
             }
         }
     }
@@ -279,7 +288,13 @@ public class QuestPrepPlugin extends Plugin {
         if (state == GameState.LOGGED_IN) routeGuidanceOverlay.seedNpcs();
         if (state == GameState.LOGIN_SCREEN || state == GameState.HOPPING)
             routeGuidanceOverlay.clearNpcs();
-        if (state == GameState.LOGIN_SCREEN && panel != null) panel.updateSkills(null);
+        if (state == GameState.LOGIN_SCREEN) {
+            skillPlanCache.clear();
+            displayedPlan = null;
+            groundLabels.clear();
+            if (panel != null) panel.updateSkills(null);
+        }
+        if (state == GameState.LOGGED_IN && bankTracker.hasScannedBank()) ownershipDirty = true;
 
         if (state == GameState.LOADING
                 || state == GameState.HOPPING
@@ -330,25 +345,31 @@ public class QuestPrepPlugin extends Plugin {
                 && client.getGameState() == GameState.LOGGED_IN
                 && client.getTickCount() - lastSkillsRefreshTick >= 10
                 && panel != null) {
-            panel.updateSkills(QuestSkillPlanner.snapshot(client));
+            QuestSkillPlanner.Plan nextPlan = skillPlanCache.snapshot(client);
+            if (nextPlan != displayedPlan) {
+                panel.updateSkills(nextPlan);
+                displayedPlan = nextPlan;
+            }
             skillsDirty = false;
             lastSkillsRefreshTick = client.getTickCount();
         }
-        if (questProgressDirty
+        if ((ownershipDirty || questProgressDirty)
                 && bankTracker.hasScannedBank()
                 && client.getGameState() == GameState.LOGGED_IN
-                && client.getTickCount() - lastProgressRefreshTick >= 10) {
+                && (ownershipDirty || client.getTickCount() - lastProgressRefreshTick >= 10)) {
             refreshChecklist();
         }
     }
 
     private void refreshChecklist() {
+        ownershipDirty = false;
         questProgressDirty = false;
         lastProgressRefreshTick = client.getTickCount();
         List<RequiredItem> requirements =
                 QuestItemDatabase.getItemsForUnfinishedQuests(client, bankTracker);
 
         activeRequirements = new ArrayList<>(requirements);
+        groundLabels.rebuild(activeRequirements, bankTracker);
 
         refreshRouteGuidance(requirements);
 
@@ -463,27 +484,14 @@ public class QuestPrepPlugin extends Plugin {
      */
 
     String getGroundItemLabel(int groundItemId) {
-        for (RequiredItem item : activeRequirements) {
-            int missing = item.getMissingQuantity(bankTracker);
-
-            if (missing <= 0) {
-                continue;
-            }
-
-            for (int acceptedId : item.getItemIds()) {
-                if (acceptedId != groundItemId) {
-                    continue;
-                }
-
-                return item.getName() + " [Need " + missing + "]";
-            }
-        }
-
-        return null;
+        return groundLabels.get(groundItemId);
     }
 
+    boolean hasGroundItemLabels() { return !groundLabels.isEmpty(); }
+
     Set<Tile> getGroundItemTiles() {
-        return new HashSet<>(groundItemTileCounts.keySet());
+        // Both the overlay and item events run on the client thread.
+        return Collections.unmodifiableSet(groundItemTileCounts.keySet());
     }
 
     /*
@@ -505,6 +513,10 @@ public class QuestPrepPlugin extends Plugin {
         routeGuidanceOverlay.clearActiveStep();
 
         bankTracker.clear();
+        groundLabels.clear();
+        skillPlanCache.clear();
+        displayedPlan = null;
+        ownershipDirty = false;
 
         activeRequirements = Collections.emptyList();
 
