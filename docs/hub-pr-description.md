@@ -12,4 +12,8 @@ In response to the 232,972-token review error, generated records now share ident
 
 ## Validation
 
-Clean local build and 54 automated tests pass against cached RuneLite 1.13.0, targeting Java 11. The owner ran both UI versions in the development client and approved their appearance. This is visual approval only; full navigation, account-switching and other gameplay edge-case testing is not claimed. GitHub CI and the bot's token count must be checked for the latest submitted commit.
+Clean local build and 56 automated tests pass against cached RuneLite 1.13.0, targeting Java 11. The owner ran both UI versions in the development client and approved their appearance. This is visual approval only; full navigation, account-switching and other gameplay edge-case testing is not claimed. GitHub CI and the bot's token count must be checked for the latest submitted commit.
+
+## Follow-up to the 212,096-token result
+
+Further reduced repeated classification and item metadata: 1,129 classifications are grouped into 200 quest/type rows, 1,188 item symbols retain their exact compile-time IDs while storing the namespace once, and common item/advisory records share identical defaults. A second fingerprint regression test verifies the entire classification map, including nested child keys and the unknown-key fallback. The complete quest-data fingerprint remains unchanged. No quests, items, classifications or features were removed. Local tokenizer totals are estimates; the review bot must confirm its own final count.

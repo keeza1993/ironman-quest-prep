@@ -10,5 +10,6 @@
 - Pulsing minimap direction arrow for nearby and distant destinations, steady-arrow option, and blue route text.
 - Plugin Hub metadata, reflection-free item lookup and event-driven NPC tracking.
 - Compact generated quest metadata: all 1,129 items, 97 advisories and 61 groups preserved field-for-field and in order.
-- 54 automated tests, including a complete-data fingerprint regression check.
+- 56 automated tests, including a complete-data fingerprint regression check.
 - User approved both UI iterations visually in the development client. Full gameplay edge-case verification is not claimed.
+- Further grouped identical classification and advisory metadata; full classification-map fingerprint verified.
