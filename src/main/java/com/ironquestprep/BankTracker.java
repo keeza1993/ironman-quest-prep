@@ -8,6 +8,7 @@ import java.util.Set;
 import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
 
+/** Tracks bank, shared storage and inventory quantities; snapshots isolate the sidebar. */
 public class BankTracker
 {
     private final Map<Integer, Integer> bankItems =
@@ -22,12 +23,6 @@ public class BankTracker
     private boolean bankScanned = false;
     private boolean groupStorageScanned = false;
     private boolean inventoryScanned = false;
-
-    /*
-     * =====================================================
-     * SCANNING
-     * =====================================================
-     */
 
     public void scanBank(
             ItemContainer bank)
@@ -111,22 +106,6 @@ public class BankTracker
         }
     }
 
-    /*
-     * =====================================================
-     * TOTAL OWNERSHIP
-     * =====================================================
-     *
-     * Anything asking:
-     *
-     * "Does the player own this?"
-     *
-     * sees:
-     *
-     * bank
-     * + group storage
-     * + inventory
-     */
-
     public int getQuantity(
             int itemId)
     {
@@ -193,18 +172,6 @@ public class BankTracker
         ) >= quantity;
     }
 
-    /*
-     * =====================================================
-     * BANK SUMMARY
-     * =====================================================
-     *
-     * Deliberately excludes inventory.
-     *
-     * The sidebar says "Bank", so carrying an item should
-     * affect quest readiness but should not change the
-     * displayed bank totals.
-     */
-
     public int getUniqueItemCount()
     {
         Set<Integer> uniqueItems =
@@ -240,12 +207,6 @@ public class BankTracker
         return total;
     }
 
-    /*
-     * =====================================================
-     * SCAN STATUS
-     * =====================================================
-     */
-
     public boolean hasScannedBank()
     {
         return bankScanned;
@@ -261,11 +222,16 @@ public class BankTracker
         return inventoryScanned;
     }
 
-    /*
-     * =====================================================
-     * ACCOUNT / PLUGIN RESET
-     * =====================================================
-     */
+    public BankTracker snapshot() {
+        BankTracker copy = new BankTracker();
+        copy.bankItems.putAll(bankItems);
+        copy.groupStorageItems.putAll(groupStorageItems);
+        copy.inventoryItems.putAll(inventoryItems);
+        copy.bankScanned = bankScanned;
+        copy.groupStorageScanned = groupStorageScanned;
+        copy.inventoryScanned = inventoryScanned;
+        return copy;
+    }
 
     public void clear()
     {

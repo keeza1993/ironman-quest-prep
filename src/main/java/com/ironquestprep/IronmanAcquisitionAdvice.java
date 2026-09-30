@@ -48,6 +48,11 @@ public final class IronmanAcquisitionAdvice {
             base = fallbackInfo(name);
         }
 
+        if (base.getRegion() == AcquisitionRegion.ANYWHERE) {
+            AcquisitionInfo shop = ShopSupplyCatalog.preferredSource(source);
+            if (shop != null) base = shop;
+        }
+
         /*
          * Keep useful caveats from Quest Helper even when a stronger generic
          * acquisition route supplied the actual place.

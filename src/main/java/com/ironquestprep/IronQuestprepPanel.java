@@ -44,33 +44,18 @@ public class IronQuestprepPanel extends PluginPanel {
 
     private final JPanel itemList;
 
-    /*
-     * Keeps regions open when the checklist refreshes.
-     */
     private final Set<AcquisitionRegion> expandedRegions = EnumSet.noneOf(AcquisitionRegion.class);
 
-    /*
-     * false = normal checklist
-     * true  = gathering route
-     */
     private boolean routeMode = false;
     private boolean skillsMode;
     private boolean panelActive;
     private QuestSkillPlanner.Plan latestPlan;
     private final QuestSkillsPanel skillsPanel = new QuestSkillsPanel();
 
-    /*
-     * Latest data supplied by the plugin.
-     */
     private BankTracker currentBankTracker;
 
     private List<RequiredItem> currentRequiredItems = new ArrayList<>();
 
-    /*
-     * Called when the player manually chooses a route step.
-     *
-     * The plugin will connect this to RouteGuidanceOverlay.
-     */
     private Consumer<GatheringStep> routeStepSelectionListener = step -> {};
 
     public IronQuestprepPanel() {
@@ -108,12 +93,6 @@ public class IronQuestprepPanel extends PluginPanel {
         questProgress.setForeground(Color.WHITE);
 
         questProgress.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        /*
-         * =====================================================
-         * VIEW SELECTOR
-         * =====================================================
-         */
 
         JPanel modePanel = new JPanel();
 
@@ -171,12 +150,6 @@ public class IronQuestprepPanel extends PluginPanel {
 
         updateModeButtons();
 
-        /*
-         * =====================================================
-         * MAIN BODY
-         * =====================================================
-         */
-
         itemList = new JPanel();
 
         itemList.setLayout(new BoxLayout(itemList, BoxLayout.Y_AXIS));
@@ -219,21 +192,9 @@ public class IronQuestprepPanel extends PluginPanel {
         add(content, BorderLayout.NORTH);
     }
 
-    /*
-     * =====================================================
-     * ROUTE STEP SELECTION
-     * =====================================================
-     */
-
     public void setRouteStepSelectionListener(Consumer<GatheringStep> listener) {
         routeStepSelectionListener = listener == null ? step -> {} : listener;
     }
-
-    /*
-     * =====================================================
-     * VIEW BUTTONS
-     * =====================================================
-     */
 
     private JButton createModeButton(String text) {
         JButton button = new JButton(text);
@@ -264,12 +225,6 @@ public class IronQuestprepPanel extends PluginPanel {
         styleModeButton(routeModeButton, routeMode && !skillsMode);
         styleModeButton(skillsModeButton, skillsMode);
     }
-
-    /*
-     * =====================================================
-     * ACCOUNT / DATA UPDATES
-     * =====================================================
-     */
 
     public void resetForAccountChange() {
         SwingUtilities.invokeLater(
@@ -322,12 +277,6 @@ public class IronQuestprepPanel extends PluginPanel {
                     renderCurrentView();
                 });
     }
-
-    /*
-     * =====================================================
-     * MAIN RENDER
-     * =====================================================
-     */
 
     public void updateSkills(QuestSkillPlanner.Plan plan) {
         SwingUtilities.invokeLater(
@@ -392,12 +341,6 @@ public class IronQuestprepPanel extends PluginPanel {
         itemList.repaint();
     }
 
-    /*
-     * =====================================================
-     * CHECKLIST VIEW
-     * =====================================================
-     */
-
     private void renderChecklist(List<RequiredItem> sortedItems, BankTracker bankTracker) {
         Map<AcquisitionRegion, List<RequiredItem>> regionItems = new LinkedHashMap<>();
 
@@ -412,7 +355,11 @@ public class IronQuestprepPanel extends PluginPanel {
         for (AcquisitionRegion region : regions) {
             List<RequiredItem> items = regionItems.get(region);
 
-            addChecklistRegionSection(region, items, bankTracker);
+            if (region == AcquisitionRegion.ANYWHERE) {
+                itemList.add(createChecklistRegionBody(items, bankTracker));
+            } else {
+                addChecklistRegionSection(region, items, bankTracker);
+            }
 
             itemList.add(Box.createVerticalStrut(6));
         }
@@ -431,7 +378,15 @@ public class IronQuestprepPanel extends PluginPanel {
                         buildChecklistRegionButtonText(region, ready, items.size(), expanded),
                         region);
 
-        JPanel regionBody = createChecklistRegionBody(items, bankTracker);
+        JPanel regionBody = createRegionBodyPanel();
+        boolean[] built = {false};
+        Runnable populate = () -> {
+            if (!built[0]) {
+                regionBody.add(createChecklistRegionBody(items, bankTracker));
+                built[0] = true;
+            }
+        };
+        if (expanded) populate.run();
 
         regionBody.setVisible(expanded);
 
@@ -439,6 +394,7 @@ public class IronQuestprepPanel extends PluginPanel {
                 event -> {
                     boolean nowExpanded = toggleRegion(region);
 
+                    if (nowExpanded) populate.run();
                     regionBody.setVisible(nowExpanded);
 
                     regionButton.setText(
@@ -458,32 +414,16 @@ public class IronQuestprepPanel extends PluginPanel {
     private JPanel createChecklistRegionBody(List<RequiredItem> items, BankTracker bankTracker) {
         JPanel body = createRegionBodyPanel();
 
-        String currentLocation = null;
-
+        Map<String, List<RequiredItem>> locations = new LinkedHashMap<>();
         for (RequiredItem item : items) {
-            String location = getDisplayLocation(item);
-
-            if (!location.equals(currentLocation)) {
-                if (currentLocation != null) {
-                    body.add(Box.createVerticalStrut(5));
-                }
-
-                body.add(createLocationLabel(location));
-
-                currentLocation = location;
-            }
-
-            body.add(createItemLabel(item, bankTracker));
+            locations.computeIfAbsent(getDisplayLocation(item), unused -> new ArrayList<>()).add(item);
+        }
+        for (Map.Entry<String, List<RequiredItem>> entry : locations.entrySet()) {
+            body.add(new PagedSupplySection<>(entry.getKey(), entry.getValue(), item -> createItemLabel(item, bankTracker)));
         }
 
         return body;
     }
-
-    /*
-     * =====================================================
-     * GATHERING ROUTE VIEW
-     * =====================================================
-     */
 
     private void renderGatheringRoute(List<RequiredItem> requiredItems, BankTracker bankTracker) {
         List<GatheringStep> steps = GatheringRouteBuilder.build(requiredItems, bankTracker);
@@ -509,7 +449,11 @@ public class IronQuestprepPanel extends PluginPanel {
         }
 
         for (Map.Entry<AcquisitionRegion, List<GatheringStep>> entry : regionSteps.entrySet()) {
-            addRouteRegionSection(entry.getKey(), entry.getValue());
+            if (entry.getKey() == AcquisitionRegion.ANYWHERE) {
+                itemList.add(createRouteRegionBody(entry.getValue()));
+            } else {
+                addRouteRegionSection(entry.getKey(), entry.getValue());
+            }
 
             itemList.add(Box.createVerticalStrut(6));
         }
@@ -524,7 +468,15 @@ public class IronQuestprepPanel extends PluginPanel {
                 createRegionButton(
                         buildRouteRegionButtonText(region, steps.size(), expanded), region);
 
-        JPanel regionBody = createRouteRegionBody(steps);
+        JPanel regionBody = createRegionBodyPanel();
+        boolean[] built = {false};
+        Runnable populate = () -> {
+            if (!built[0]) {
+                regionBody.add(createRouteRegionBody(steps));
+                built[0] = true;
+            }
+        };
+        if (expanded) populate.run();
 
         regionBody.setVisible(expanded);
 
@@ -532,6 +484,7 @@ public class IronQuestprepPanel extends PluginPanel {
                 event -> {
                     boolean nowExpanded = toggleRegion(region);
 
+                    if (nowExpanded) populate.run();
                     regionBody.setVisible(nowExpanded);
 
                     regionButton.setText(
@@ -550,30 +503,15 @@ public class IronQuestprepPanel extends PluginPanel {
     private JPanel createRouteRegionBody(List<GatheringStep> steps) {
         JPanel body = createRegionBodyPanel();
 
-        String currentLocation = null;
-
-        int stepNumber = 1;
-
+        Map<String, List<GatheringStep>> locations = new LinkedHashMap<>();
         for (GatheringStep step : steps) {
             String location = step.getLocation();
-
-            if (location == null || location.trim().isEmpty()) {
-                location = "General / multiple locations";
-            }
-
-            if (!location.equals(currentLocation)) {
-                if (currentLocation != null) {
-                    body.add(Box.createVerticalStrut(8));
-                }
-
-                body.add(createLocationLabel(location));
-
-                currentLocation = location;
-            }
-
-            body.add(createGatheringStepPanel(step, stepNumber));
-
-            stepNumber++;
+            if (location == null || location.trim().isEmpty()) location = "General / multiple locations";
+            locations.computeIfAbsent(location, unused -> new ArrayList<>()).add(step);
+        }
+        for (Map.Entry<String, List<GatheringStep>> entry : locations.entrySet()) {
+            int[] number = {0};
+            body.add(new PagedSupplySection<>(entry.getKey(), entry.getValue(), step -> createGatheringStepPanel(step, ++number[0])));
         }
 
         return body;
@@ -588,9 +526,6 @@ public class IronQuestprepPanel extends PluginPanel {
 
         panel.setBorder(BorderFactory.createEmptyBorder(4, 18, 7, 0));
 
-        /*
-         * Step title.
-         */
         JLabel title =
                 new JLabel(
                         "<html><b>"
@@ -610,9 +545,6 @@ public class IronQuestprepPanel extends PluginPanel {
 
         panel.add(title);
 
-        /*
-         * Acquisition instructions.
-         */
         String instruction = step.getInstruction();
 
         if (instruction == null || instruction.trim().isEmpty()) {
@@ -633,9 +565,6 @@ public class IronQuestprepPanel extends PluginPanel {
 
         panel.add(method);
 
-        /*
-         * Method type.
-         */
         if (step.getMethodType() != null) {
             JLabel type = new JLabel("[" + step.getMethodType().getDisplayName() + "]");
 
@@ -648,9 +577,6 @@ public class IronQuestprepPanel extends PluginPanel {
             panel.add(type);
         }
 
-        /*
-         * Navigation target information.
-         */
         GatheringTarget target = step.getTarget();
 
         if (target == null) {
@@ -669,10 +595,6 @@ public class IronQuestprepPanel extends PluginPanel {
 
         panel.add(targetLabel);
 
-        /*
-         * Coordinates only appear when the target has
-         * an actual verified WorldPoint.
-         */
         if (target.hasWorldPoint()) {
             JLabel coordinates =
                     new JLabel(
@@ -689,9 +611,6 @@ public class IronQuestprepPanel extends PluginPanel {
             panel.add(coordinates);
         }
 
-        /*
-         * Navigation data status.
-         */
         JLabel navigationStatus = new JLabel(escapeHtml(target.getNavigationStatus()));
 
         if (target.isNavigable()) {
@@ -708,10 +627,6 @@ public class IronQuestprepPanel extends PluginPanel {
 
         panel.add(navigationStatus);
 
-        /*
-         * Only offer a navigation button if this step
-         * genuinely has a WorldPoint.
-         */
         if (target.isNavigable()) {
             JButton navigateButton = new JButton("Show destination on map");
 
@@ -734,12 +649,6 @@ public class IronQuestprepPanel extends PluginPanel {
 
         return panel;
     }
-
-    /*
-     * =====================================================
-     * SHARED REGION UI
-     * =====================================================
-     */
 
     private JPanel createRegionPanel() {
         JPanel regionPanel = new JPanel();
@@ -840,12 +749,6 @@ public class IronQuestprepPanel extends PluginPanel {
     private String getRegionName(AcquisitionRegion region) {
         return region.getDisplayName().toUpperCase(Locale.ROOT);
     }
-
-    /*
-     * =====================================================
-     * CHECKLIST LABELS
-     * =====================================================
-     */
 
     private JLabel createLocationLabel(String location) {
         JLabel label = new JLabel("<html><b>" + escapeHtml(location) + "</b></html>");

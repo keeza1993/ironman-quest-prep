@@ -18,7 +18,6 @@ import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.AccountHashChanged;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
-import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.ItemDespawned;
 import net.runelite.api.events.ItemSpawned;
@@ -68,9 +67,7 @@ public class QuestPrepPlugin extends Plugin {
     private final QuestSkillPlanner.Cache skillPlanCache = new QuestSkillPlanner.Cache();
     private QuestSkillPlanner.Plan displayedPlan;
     private boolean ownershipDirty;
-    private boolean questProgressDirty;
     private final SkillRefreshSchedule skillRefreshSchedule = new SkillRefreshSchedule();
-    private int lastProgressRefreshTick;
 
     @Override
     protected void startUp() {
@@ -115,12 +112,6 @@ public class QuestPrepPlugin extends Plugin {
         log.debug("Ironman Quest Prep started!");
     }
 
-    /*
-     * =====================================================
-     * MANUAL ROUTE SELECTION
-     * =====================================================
-     */
-
     private void selectRouteStep(GatheringStep step) {
         if (step == null) {
             return;
@@ -140,12 +131,6 @@ public class QuestPrepPlugin extends Plugin {
                         + " at "
                         + step.getTarget().getCoordinateText());
     }
-
-    /*
-     * =====================================================
-     * ACCOUNT CHANGES
-     * =====================================================
-     */
 
     @Subscribe
     public void onAccountHashChanged(AccountHashChanged event) {
@@ -179,11 +164,17 @@ public class QuestPrepPlugin extends Plugin {
         lastAccountHash = currentAccountHash;
     }
 
-    /*
-     * =====================================================
-     * ITEM CONTAINERS
-     * =====================================================
-     */
+    @Subscribe
+    public void onWidgetLoaded(net.runelite.api.events.WidgetLoaded event) {
+        if (event.getGroupId() == net.runelite.api.gameval.InterfaceID.BANKMAIN) {
+            net.runelite.api.ItemContainer bank = client.getItemContainer(InventoryID.BANK);
+            if (bank != null) {
+                bankTracker.scanBank(bank);
+                bankTracker.scanInventory(client.getItemContainer(InventoryID.INV));
+                ownershipDirty = true;
+            }
+        }
+    }
 
     @Subscribe
     public void onItemContainerChanged(ItemContainerChanged event) {
@@ -221,17 +212,9 @@ public class QuestPrepPlugin extends Plugin {
         if (containerId == InventoryID.INV) {
             bankTracker.scanInventory(event.getItemContainer());
 
-            if (bankTracker.hasScannedBank()) {
-                ownershipDirty = true;
-            }
+            groundLabels.rebuild(activeRequirements, bankTracker);
         }
     }
-
-    /*
-     * =====================================================
-     * GROUND ITEMS
-     * =====================================================
-     */
 
     @Subscribe
     public void onItemSpawned(ItemSpawned event) {
@@ -283,7 +266,6 @@ public class QuestPrepPlugin extends Plugin {
             groundLabels.clear();
             if (panel != null) panel.updateSkills(null);
         }
-        if (state == GameState.LOGGED_IN && bankTracker.hasScannedBank()) ownershipDirty = true;
 
         if (state == GameState.LOADING
                 || state == GameState.HOPPING
@@ -293,18 +275,6 @@ public class QuestPrepPlugin extends Plugin {
         if (state == GameState.LOGIN_SCREEN) {
             routeGuidanceOverlay.clearActiveStep();
         }
-    }
-
-    /*
-     * =====================================================
-     * CHECKLIST REFRESH
-     * =====================================================
-     */
-
-    @Subscribe
-    public void onVarbitChanged(VarbitChanged event) {
-        // Quest progress can unlock a source without any inventory change.
-        questProgressDirty = true;
     }
 
     @Subscribe
@@ -318,18 +288,15 @@ public class QuestPrepPlugin extends Plugin {
                 displayedPlan = nextPlan;
             }
         }
-        if ((ownershipDirty || questProgressDirty)
+        if (ownershipDirty
                 && bankTracker.hasScannedBank()
-                && client.getGameState() == GameState.LOGGED_IN
-                && (ownershipDirty || client.getTickCount() - lastProgressRefreshTick >= 10)) {
+                && client.getGameState() == GameState.LOGGED_IN) {
             refreshChecklist();
         }
     }
 
     private void refreshChecklist() {
         ownershipDirty = false;
-        questProgressDirty = false;
-        lastProgressRefreshTick = client.getTickCount();
         List<RequiredItem> requirements =
                 QuestItemDatabase.getItemsForUnfinishedQuests(client, bankTracker);
 
@@ -342,15 +309,9 @@ public class QuestPrepPlugin extends Plugin {
             panel.updateBankStatus(
                     bankTracker.getUniqueItemCount(), bankTracker.getTotalItemCount());
 
-            panel.updateChecklist(bankTracker, requirements);
+            panel.updateChecklist(bankTracker.snapshot(), requirements);
         }
     }
-
-    /*
-     * =====================================================
-     * PLAYER POSITION
-     * =====================================================
-     */
 
     private WorldPoint getPlayerWorldPoint() {
         if (client.getLocalPlayer() == null) {
@@ -359,12 +320,6 @@ public class QuestPrepPlugin extends Plugin {
 
         return client.getLocalPlayer().getWorldLocation();
     }
-
-    /*
-     * =====================================================
-     * ROUTE GUIDANCE
-     * =====================================================
-     */
 
     private void refreshRouteGuidance(List<RequiredItem> requirements) {
         WorldPoint playerLocation = getPlayerWorldPoint();
@@ -401,12 +356,6 @@ public class QuestPrepPlugin extends Plugin {
         routeGuidanceOverlay.clearActiveStep();
     }
 
-    /*
-     * =====================================================
-     * ROUTE STEP IDENTITY
-     * =====================================================
-     */
-
     private boolean isSameRouteStep(GatheringStep first, GatheringStep second) {
         if (first == null || second == null) {
             return false;
@@ -427,12 +376,6 @@ public class QuestPrepPlugin extends Plugin {
         return text == null ? "" : text.trim();
     }
 
-    /*
-     * =====================================================
-     * GROUND ITEM OVERLAY DATA
-     * =====================================================
-     */
-
     String getGroundItemLabel(int groundItemId) {
         return groundLabels.get(groundItemId);
     }
@@ -443,12 +386,6 @@ public class QuestPrepPlugin extends Plugin {
         // Both the overlay and item events run on the client thread.
         return Collections.unmodifiableSet(groundItemTileCounts.keySet());
     }
-
-    /*
-     * =====================================================
-     * SHUTDOWN
-     * =====================================================
-     */
 
     @Override
     protected void shutDown() {
@@ -469,8 +406,6 @@ public class QuestPrepPlugin extends Plugin {
         groundItemTileCounts.clear();
 
         lastAccountHash = -1L;
-        questProgressDirty = false;
-        lastProgressRefreshTick = 0;
 
         if (navButton != null) {
             clientToolbar.removeNavigation(navButton);
@@ -481,12 +416,6 @@ public class QuestPrepPlugin extends Plugin {
 
         log.debug("Ironman Quest Prep stopped!");
     }
-
-    /*
-     * =====================================================
-     * CONFIG
-     * =====================================================
-     */
 
     @Provides
     QuestPrepConfig provideConfig(ConfigManager configManager) {
