@@ -46,14 +46,6 @@ public class NavigationRegressionTest
         assertEquals(NpcID.BETTY, result.getTargetId());
     }
 
-    @Test public void minimapIsDrawnAboveTheInterface()
-    {
-        assertEquals(net.runelite.client.ui.overlay.OverlayLayer.ABOVE_WIDGETS,
-                new RouteMinimapOverlay(null).getLayer());
-        assertEquals(net.runelite.client.ui.overlay.OverlayLayer.ABOVE_SCENE,
-                new RouteGuidanceOverlay(null, null, null).getLayer());
-    }
-
     @Test public void itemMentionInNotesDoesNotOverrideLocation()
     {
         GatheringTarget result = GatheringTargetResolver.resolve(step("Cake tin", "Rimmington", "Obtain a cake tin here."));

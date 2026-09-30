@@ -5,10 +5,10 @@ A RuneLite plugin for planning quest supplies, choosing gathering destinations, 
 ## Features
 
 - **Checklist:** combines item requirements for unfinished quests with scanned bank and inventory ownership. Reusable tools use the maximum required quantity rather than one extra tool per quest.
-- **Gathering Route:** groups missing supplies by destination, with optional world, minimap and world-map guidance. Exact targets take priority over general locations; Kourend and Varlamore each retain one general destination.
+- **Gathering Route:** groups missing supplies by destination, with a selected world-map destination and the native game hint arrow. Exact targets take priority over general locations; Kourend and Varlamore each retain one general destination.
 - **Quest Cape Skills:** shows conservative base-level targets and estimates training XP after fixed quest rewards. Expand a skill to see reward quests and training steps.
 
-Open your bank to populate the item checklist. The skills section needs only a logged-in account. Enable **Route guidance** in plugin settings to display navigation overlays. The minimap arrow pulses gently; turn off **Flash minimap arrow** for a steady arrow. The **Report a bug (Discord)** button opens the support server in your browser when clicked.
+Open your bank to populate the item checklist. The skills section needs only a logged-in account. Click **Show destination on map** on a gathering step to enable guidance and set its world-map pin and native flashing hint arrow. Select another step to replace the destination; disable **Route guidance** to clear it. Skills refresh on login, then after every 30 minutes of logged-in play. The **Report a bug (Discord)** button opens the support server in your browser when clicked.
 
 ## Limitations
 

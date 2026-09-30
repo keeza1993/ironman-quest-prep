@@ -1,10 +1,8 @@
 package com.ironquestprep;
 
-import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import net.runelite.api.Point;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.gameval.ItemID;
 import org.junit.Test;
@@ -116,20 +114,4 @@ public class PrepAndStageRegressionTest
         assertTrue(GatheringRouteBuilder.build(items, ballsOwned).isEmpty());
     }
 
-    @Test public void minimapArrowStaysInsideVisibleCircleForEveryHeading()
-    {
-        Rectangle bounds = new Rectangle(100, 100, 150, 150);
-        Point centre = new Point(175, 175);
-        for (int x = -1; x <= 1; x++) for (int y = -1; y <= 1; y++)
-        {
-            if (x == 0 && y == 0) continue;
-            Point tip = RouteGuidanceOverlay.minimapEdgePoint(centre, new Point(175 + x * 4, 175 + y * 4), bounds);
-            assertTrue(RouteGuidanceOverlay.insideMinimap(tip, bounds, 8));
-            assertEquals(Integer.signum(x), Integer.signum(tip.getX() - 175));
-            assertEquals(Integer.signum(y), Integer.signum(tip.getY() - 175));
-        }
-        assertFalse(RouteGuidanceOverlay.insideMinimap(new Point(250, 175), bounds, 8));
-        assertNull(RouteGuidanceOverlay.minimapEdgePoint(centre, centre, bounds));
-        assertNull(RouteGuidanceOverlay.minimapEdgePoint(centre, centre, null));
-    }
 }

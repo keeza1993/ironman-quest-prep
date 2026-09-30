@@ -21,21 +21,11 @@ public interface QuestPrepConfig extends Config
 	@ConfigItem(
 			keyName = "routeGuidance",
 			name = "Route guidance",
-			description = "Show navigation markers, arrows, NPCs and locations for gathering routes",
+			description = "Show a world-map destination and the game hint arrow for your selected gathering location",
 			position = 1
 	)
 	default boolean routeGuidance()
 	{
 		return false;
 	}
-    @ConfigItem(
-            keyName = "flashMinimapArrow",
-            name = "Flash minimap arrow",
-            description = "Gently pulse the route arrow once per second. Turn off for a steady arrow.",
-            position = 2
-    )
-    default boolean flashMinimapArrow()
-    {
-        return true;
-    }
 }

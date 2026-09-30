@@ -18,10 +18,6 @@ import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.AccountHashChanged;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
-import net.runelite.api.events.StatChanged;
-import net.runelite.api.events.NpcSpawned;
-import net.runelite.api.events.NpcDespawned;
-import net.runelite.api.events.NpcChanged;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.ItemDespawned;
@@ -53,7 +49,7 @@ public class QuestPrepPlugin extends Plugin {
 
     @Inject private RouteGuidanceOverlay routeGuidanceOverlay;
 
-    @Inject private RouteMinimapOverlay routeMinimapOverlay;
+    @Inject private ConfigManager configManager;
 
     @Inject private ClientThread clientThread;
 
@@ -73,8 +69,7 @@ public class QuestPrepPlugin extends Plugin {
     private QuestSkillPlanner.Plan displayedPlan;
     private boolean ownershipDirty;
     private boolean questProgressDirty;
-    private boolean skillsDirty = true;
-    private int lastSkillsRefreshTick = -10;
+    private final SkillRefreshSchedule skillRefreshSchedule = new SkillRefreshSchedule();
     private int lastProgressRefreshTick;
 
     @Override
@@ -84,16 +79,13 @@ public class QuestPrepPlugin extends Plugin {
         skillPlanCache.clear();
         displayedPlan = null;
         ownershipDirty = false;
-        skillsDirty = true;
-        lastSkillsRefreshTick = -10;
+        skillRefreshSchedule.reset();
 
         activeRequirements = Collections.emptyList();
 
         groundItemTileCounts.clear();
 
         routeGuidanceOverlay.clearActiveStep();
-
-        routeGuidanceOverlay.setBankTracker(bankTracker);
 
         lastAccountHash = client.getAccountHash();
 
@@ -120,14 +112,6 @@ public class QuestPrepPlugin extends Plugin {
 
         overlayManager.add(groundItemOverlay);
 
-        overlayManager.add(routeGuidanceOverlay);
-        overlayManager.add(routeMinimapOverlay);
-        clientThread.invokeLater(
-                () -> {
-                    if (panel != null && client.getGameState() == GameState.LOGGED_IN)
-                        routeGuidanceOverlay.seedNpcs();
-                });
-
         log.debug("Ironman Quest Prep started!");
     }
 
@@ -146,6 +130,8 @@ public class QuestPrepPlugin extends Plugin {
             return;
         }
 
+        configManager.setConfiguration("ironquesthelper", "routeGuidance", true);
+        routeGuidanceOverlay.clearActiveStep();
         routeGuidanceOverlay.setActiveStep(step);
 
         log.debug(
@@ -184,8 +170,7 @@ public class QuestPrepPlugin extends Plugin {
 
             if (panel != null) {
                 panel.resetForAccountChange();
-                skillsDirty = true;
-                lastSkillsRefreshTick = -10;
+                skillRefreshSchedule.reset();
             }
 
             log.debug("Ironman Quest Prep: account changed - cached item data cleared.");
@@ -281,13 +266,17 @@ public class QuestPrepPlugin extends Plugin {
     }
 
     @Subscribe
+    public void onConfigChanged(net.runelite.client.events.ConfigChanged event) {
+        if ("ironquesthelper".equals(event.getGroup()) && "routeGuidance".equals(event.getKey())) {
+            clientThread.invokeLater(() -> routeGuidanceOverlay.setActiveStep(routeGuidanceOverlay.getActiveStep()));
+        }
+    }
+
+    @Subscribe
     public void onGameStateChanged(GameStateChanged event) {
         GameState state = event.getGameState();
-        skillsDirty = true;
-        lastSkillsRefreshTick = -10;
-        if (state == GameState.LOGGED_IN) routeGuidanceOverlay.seedNpcs();
-        if (state == GameState.LOGIN_SCREEN || state == GameState.HOPPING)
-            routeGuidanceOverlay.clearNpcs();
+        skillRefreshSchedule.setPlaying(state == GameState.LOGGED_IN, System.nanoTime());
+        if (state == GameState.LOGIN_SCREEN || state == GameState.HOPPING) skillRefreshSchedule.reset();
         if (state == GameState.LOGIN_SCREEN) {
             skillPlanCache.clear();
             displayedPlan = null;
@@ -313,45 +302,21 @@ public class QuestPrepPlugin extends Plugin {
      */
 
     @Subscribe
-    public void onNpcSpawned(NpcSpawned event) {
-        routeGuidanceOverlay.trackNpc(event.getNpc());
-    }
-
-    @Subscribe
-    public void onNpcDespawned(NpcDespawned event) {
-        routeGuidanceOverlay.untrackNpc(event.getNpc());
-    }
-
-    @Subscribe
-    public void onNpcChanged(NpcChanged event) {
-        routeGuidanceOverlay.trackNpc(event.getNpc());
-    }
-
-    @Subscribe
     public void onVarbitChanged(VarbitChanged event) {
         // Quest progress can unlock a source without any inventory change.
         questProgressDirty = true;
-        skillsDirty = true;
-    }
-
-    @Subscribe
-    public void onStatChanged(StatChanged event) {
-        skillsDirty = true;
     }
 
     @Subscribe
     public void onGameTick(GameTick event) {
-        if (skillsDirty
-                && client.getGameState() == GameState.LOGGED_IN
-                && client.getTickCount() - lastSkillsRefreshTick >= 10
-                && panel != null) {
+        if (client.getGameState() == GameState.LOGGED_IN
+                && panel != null
+                && skillRefreshSchedule.refreshDue(System.nanoTime())) {
             QuestSkillPlanner.Plan nextPlan = skillPlanCache.snapshot(client);
             if (nextPlan != displayedPlan) {
                 panel.updateSkills(nextPlan);
                 displayedPlan = nextPlan;
             }
-            skillsDirty = false;
-            lastSkillsRefreshTick = client.getTickCount();
         }
         if ((ownershipDirty || questProgressDirty)
                 && bankTracker.hasScannedBank()
@@ -433,21 +398,6 @@ public class QuestPrepPlugin extends Plugin {
             }
         }
 
-        /*
-         * Otherwise the FIRST navigable entry is now the
-         * nearest route target produced by
-         * GatheringRouteBuilder.
-         */
-        for (GatheringStep step : steps) {
-            if (!step.hasNavigationTarget()) {
-                continue;
-            }
-
-            routeGuidanceOverlay.setActiveStep(step);
-
-            return;
-        }
-
         routeGuidanceOverlay.clearActiveStep();
     }
 
@@ -504,11 +454,7 @@ public class QuestPrepPlugin extends Plugin {
     protected void shutDown() {
         overlayManager.remove(groundItemOverlay);
 
-        overlayManager.remove(routeGuidanceOverlay);
-        overlayManager.remove(routeMinimapOverlay);
-        routeGuidanceOverlay.clearNpcs();
-        skillsDirty = true;
-        lastSkillsRefreshTick = -10;
+        skillRefreshSchedule.reset();
 
         routeGuidanceOverlay.clearActiveStep();
 

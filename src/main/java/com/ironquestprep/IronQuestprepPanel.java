@@ -713,7 +713,7 @@ public class IronQuestprepPanel extends PluginPanel {
          * genuinely has a WorldPoint.
          */
         if (target.isNavigable()) {
-            JButton navigateButton = new JButton("Navigate to this step");
+            JButton navigateButton = new JButton("Show destination on map");
 
             navigateButton.setForeground(PINK);
 
