@@ -163,8 +163,8 @@ final class QuestSkillsPanel extends JPanel
             }
             if (!any) line("No training or fixed quest rewards planned for this skill.");
         }
-        JButton notes = new JButton(showNotes ? "Hide planning notes" : "Planning notes & limitations");
-        notes.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JButton notes = IronQuestprepPanel.createModeButton(showNotes ? "Hide planning notes" : "Planning notes");
+        IronQuestprepPanel.styleModeButton(notes, showNotes);
         notes.addActionListener(event -> { showNotes = !showNotes; render(); });
         add(notes);
         if (showNotes)
@@ -173,8 +173,8 @@ final class QuestSkillsPanel extends JPanel
             line("This is a skill plan, not a fastest route. Combat ability, items and access still need checking.");
             line("Choice lamps and XP from already-started quests are not deducted. Completed rewards are already in your current XP.");
         }
-        JButton order = new JButton(showOrder ? "Hide quest order" : "Show full quest order & lamps");
-        order.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JButton order = IronQuestprepPanel.createModeButton(showOrder ? "Hide quest order" : "Full quest order");
+        IronQuestprepPanel.styleModeButton(order, showOrder);
         order.addActionListener(event -> { showOrder = !showOrder; render(); });
         add(order);
         if (showOrder)

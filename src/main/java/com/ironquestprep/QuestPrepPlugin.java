@@ -297,8 +297,8 @@ public class QuestPrepPlugin extends Plugin {
 
     private void refreshChecklist() {
         ownershipDirty = false;
-        List<RequiredItem> requirements =
-                QuestItemDatabase.getItemsForUnfinishedQuests(client, bankTracker);
+        List<QuestItemDatabase.QuestSupplies> questSupplies = QuestItemDatabase.getQuestSupplies(client, bankTracker);
+        List<RequiredItem> requirements = QuestItemDatabase.combineSupplies(questSupplies);
 
         activeRequirements = new ArrayList<>(requirements);
         groundLabels.rebuild(activeRequirements, bankTracker);
@@ -309,7 +309,7 @@ public class QuestPrepPlugin extends Plugin {
             panel.updateBankStatus(
                     bankTracker.getUniqueItemCount(), bankTracker.getTotalItemCount());
 
-            panel.updateChecklist(bankTracker.snapshot(), requirements);
+            panel.updateChecklist(bankTracker.snapshot(), requirements, questSupplies);
         }
     }
 

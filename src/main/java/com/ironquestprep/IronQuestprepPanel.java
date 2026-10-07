@@ -18,6 +18,8 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
+import net.runelite.api.QuestState;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
@@ -41,6 +43,10 @@ public class IronQuestprepPanel extends PluginPanel {
     private final JButton checklistModeButton;
     private final JButton routeModeButton;
     private final JButton skillsModeButton;
+    private final JButton questsModeButton;
+    private boolean questsMode;
+    private String selectedQuest;
+    private List<QuestItemDatabase.QuestSupplies> questSupplies = java.util.Collections.emptyList();
 
     private final JPanel itemList;
 
@@ -108,10 +114,11 @@ public class IronQuestprepPanel extends PluginPanel {
 
         checklistModeButton.addActionListener(
                 event -> {
-                    if (!routeMode && !skillsMode) {
+                    if (!routeMode && !skillsMode && !questsMode) {
                         return;
                     }
 
+                    questsMode = false;
                     routeMode = false;
                     skillsMode = false;
 
@@ -122,10 +129,11 @@ public class IronQuestprepPanel extends PluginPanel {
 
         routeModeButton.addActionListener(
                 event -> {
-                    if (routeMode && !skillsMode) {
+                    if (routeMode && !skillsMode && !questsMode) {
                         return;
                     }
 
+                    questsMode = false;
                     routeMode = true;
                     skillsMode = false;
 
@@ -143,11 +151,22 @@ public class IronQuestprepPanel extends PluginPanel {
         skillsModeButton = createModeButton("Quest Cape Skills");
         skillsModeButton.addActionListener(
                 event -> {
+                    questsMode = false;
                     skillsMode = true;
                     updateModeButtons();
                     renderCurrentView();
                 });
 
+        questsModeButton = createModeButton("Started Quest Supplies");
+        questsModeButton.addActionListener(event -> {
+            questsMode = true;
+            skillsMode = false;
+            routeMode = false;
+            updateModeButtons();
+            renderCurrentView();
+        });
+        modePanel.add(Box.createVerticalStrut(8));
+        modePanel.add(questsModeButton);
         updateModeButtons();
 
         itemList = new JPanel();
@@ -196,7 +215,7 @@ public class IronQuestprepPanel extends PluginPanel {
         routeStepSelectionListener = listener == null ? step -> {} : listener;
     }
 
-    private JButton createModeButton(String text) {
+    static JButton createModeButton(String text) {
         JButton button = new JButton(text);
         button.setAlignmentX(Component.LEFT_ALIGNMENT);
         button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
@@ -209,7 +228,7 @@ public class IronQuestprepPanel extends PluginPanel {
         return button;
     }
 
-    private void styleModeButton(JButton button, boolean selected) {
+    static void styleModeButton(JButton button, boolean selected) {
         button.setSelected(selected);
         button.setBackground(selected ? new Color(100, 39, 75) : new Color(58, 58, 63));
         button.setForeground(Color.WHITE);
@@ -221,9 +240,10 @@ public class IronQuestprepPanel extends PluginPanel {
     }
 
     private void updateModeButtons() {
-        styleModeButton(checklistModeButton, !routeMode && !skillsMode);
-        styleModeButton(routeModeButton, routeMode && !skillsMode);
+        styleModeButton(checklistModeButton, !routeMode && !skillsMode && !questsMode);
+        styleModeButton(routeModeButton, routeMode && !skillsMode && !questsMode);
         styleModeButton(skillsModeButton, skillsMode);
+        styleModeButton(questsModeButton, questsMode);
     }
 
     public void resetForAccountChange() {
@@ -240,6 +260,8 @@ public class IronQuestprepPanel extends PluginPanel {
                     currentBankTracker = null;
 
                     currentRequiredItems = new ArrayList<>();
+                    questSupplies = java.util.Collections.emptyList();
+                    selectedQuest = null;
 
                     latestPlan = null;
                     skillsPanel.setPlan(null);
@@ -265,14 +287,18 @@ public class IronQuestprepPanel extends PluginPanel {
                 });
     }
 
-    public void updateChecklist(BankTracker bankTracker, List<RequiredItem> requiredItems) {
+    public void updateChecklist(BankTracker bankTracker, List<RequiredItem> requiredItems,
+            List<QuestItemDatabase.QuestSupplies> supplies) {
         List<RequiredItem> snapshot = new ArrayList<>(requiredItems);
+        List<QuestItemDatabase.QuestSupplies> questSnapshot = new ArrayList<>(supplies);
+        questSnapshot.sort(Comparator.comparing(q -> q.quest.getName()));
 
         SwingUtilities.invokeLater(
                 () -> {
                     currentBankTracker = bankTracker;
 
                     currentRequiredItems = snapshot;
+                    questSupplies = questSnapshot;
 
                     renderCurrentView();
                 });
@@ -314,6 +340,13 @@ public class IronQuestprepPanel extends PluginPanel {
             return;
         }
 
+        if (questsMode) {
+            renderQuestSupplies();
+            itemList.revalidate();
+            itemList.repaint();
+            return;
+        }
+
         List<RequiredItem> sortedItems = new ArrayList<>(currentRequiredItems);
 
         sortedItems.sort(
@@ -339,6 +372,41 @@ public class IronQuestprepPanel extends PluginPanel {
 
         itemList.revalidate();
         itemList.repaint();
+    }
+
+    private void renderQuestSupplies() {
+        itemList.add(new JLabel("<html>Whole-quest prep supplies, refreshed at the bank.<br>Items used earlier may still appear. Quest-issued items are excluded.</html>"));
+        JComboBox<Object> picker = new JComboBox<>();
+        picker.addItem("All started quests");
+        for (QuestItemDatabase.QuestSupplies supply : questSupplies) {
+            picker.addItem(supply);
+            if (supply.quest.name().equals(selectedQuest)) picker.setSelectedItem(supply);
+        }
+        picker.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+        picker.setToolTipText("Choose any unfinished quest to prepare before starting it.");
+        picker.addActionListener(event -> {
+            Object selected = picker.getSelectedItem();
+            selectedQuest = selected instanceof QuestItemDatabase.QuestSupplies
+                    ? ((QuestItemDatabase.QuestSupplies) selected).quest.name() : null;
+            renderCurrentView();
+        });
+        itemList.add(picker);
+        int shown = 0;
+        for (QuestItemDatabase.QuestSupplies supply : questSupplies) {
+            if (selectedQuest == null ? supply.state != QuestState.IN_PROGRESS
+                    : !supply.quest.name().equals(selectedQuest)) continue;
+            shown++;
+            List<GatheringStep> steps = GatheringRouteBuilder.build(supply.items, currentBankTracker);
+            if (steps.isEmpty()) {
+                itemList.add(new JLabel("<html>" + escapeHtml(supply.quest.getName()) + ": no missing gatherable prep supplies.</html>"));
+            } else {
+                int[] number = {0};
+                itemList.add(new PagedSupplySection<>(supply.quest.getName() + " ("
+                        + countReady(supply.items, currentBankTracker) + "/" + supply.items.size() + " ready)", steps,
+                        step -> createGatheringStepPanel(step, ++number[0])));
+            }
+        }
+        if (shown == 0) itemList.add(new JLabel("<html>No started quests in this bank snapshot.<br>Choose a quest above, or start one and reopen your bank.</html>"));
     }
 
     private void renderChecklist(List<RequiredItem> sortedItems, BankTracker bankTracker) {

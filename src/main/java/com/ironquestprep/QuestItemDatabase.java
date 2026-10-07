@@ -22,33 +22,46 @@ public final class QuestItemDatabase {
 
     public static List<RequiredItem> getItemsForUnfinishedQuests(
             Client client, BankTracker bankTracker) {
-        List<RequiredItem> selected = new ArrayList<>();
-        PrepAvailability.Progress progress = PrepAvailability.snapshot(client);
+        return combineSupplies(getQuestSupplies(client, bankTracker));
+    }
 
-        for (QuestData questData : QUEST_DATA.values()) {
-            Quest quest = resolveRuneLiteQuest(questData.helperName);
-
-            /*
-             * Helper-only activities / miniquests which do not
-             * map to RuneLite's normal Quest enum are deliberately
-             * skipped for now.
-             */
-            if (quest == null) {
-                continue;
-            }
-
-            if (quest.getState(client) == QuestState.FINISHED) {
-                continue;
-            }
-
-            for (String root : questData.roots) {
-                selected.addAll(
-                        resolveNode(
-                                questData, root, client, bankTracker, progress, new HashSet<>()));
-            }
+    static final class QuestSupplies {
+        final Quest quest;
+        final QuestState state;
+        final List<RequiredItem> items;
+        QuestSupplies(Quest quest, QuestState state, List<RequiredItem> items) {
+            this.quest = quest;
+            this.state = state;
+            this.items = java.util.Collections.unmodifiableList(new ArrayList<>(items));
         }
+        @Override public String toString() { return quest.getName(); }
+    }
 
-        return mergeItems(selected);
+    static List<QuestSupplies> getQuestSupplies(Client client, BankTracker bank) {
+        return getQuestSupplies(client, bank, quest -> quest.getState(client));
+    }
+
+    static List<QuestSupplies> getQuestSupplies(Client client, BankTracker bank,
+            java.util.function.Function<Quest, QuestState> states) {
+        List<QuestSupplies> supplies = new ArrayList<>();
+        PrepAvailability.Progress progress = PrepAvailability.snapshot(client);
+        for (QuestData data : QUEST_DATA.values()) {
+            Quest quest = resolveRuneLiteQuest(data.helperName);
+            if (quest == null) continue;
+            QuestState state = states.apply(quest);
+            if (state == QuestState.FINISHED) continue;
+            List<RequiredItem> items = new ArrayList<>();
+            for (String root : data.roots)
+                items.addAll(resolveNode(data, root, client, bank, progress, new HashSet<>()));
+            supplies.add(new QuestSupplies(quest, state, mergeItems(items)));
+        }
+        return supplies;
+    }
+
+    static List<RequiredItem> combineSupplies(List<QuestSupplies> quests) {
+        List<RequiredItem> items = new ArrayList<>();
+        for (QuestSupplies quest : quests) items.addAll(quest.items);
+        return mergeItems(items);
     }
 
     private static Map<String, QuestData> buildQuestData() {
