@@ -10,21 +10,10 @@ import net.runelite.api.gameval.ItemID;
 import net.runelite.api.gameval.ObjectID;
 
 public final class GatheringRouteBuilder {
-    /*
-     * Latest player position supplied by the plugin.
-     *
-     * The plugin builds from the RuneLite client thread,
-     * while the panel may rebuild on Swing's EDT.
-     */
+
     private static volatile WorldPoint routeOrigin;
 
     private GatheringRouteBuilder() {}
-
-    /*
-     * =====================================================
-     * PANEL / COMPATIBILITY BUILD
-     * =====================================================
-     */
 
     public static List<GatheringStep> build(
             List<RequiredItem> requirements, BankTracker bankTracker) {
@@ -36,12 +25,6 @@ public final class GatheringRouteBuilder {
 
         return build(requirements, bankTracker, origin);
     }
-
-    /*
-     * =====================================================
-     * LOCATION-AWARE BUILD
-     * =====================================================
-     */
 
     public static List<GatheringStep> build(
             List<RequiredItem> requirements, BankTracker bankTracker, WorldPoint playerLocation) {
@@ -80,12 +63,6 @@ public final class GatheringRouteBuilder {
 
         return ordered;
     }
-
-    /*
-     * =====================================================
-     * BASE STEP GENERATION
-     * =====================================================
-     */
 
     private static List<GatheringStep> buildBaseSteps(
             List<RequiredItem> requirements, BankTracker bankTracker) {
@@ -134,10 +111,6 @@ public final class GatheringRouteBuilder {
 
             GatheringStep finalStep = baseStep.withTarget(target);
 
-            /*
-             * Convert known multi-action items into staged
-             * acquisition routes.
-             */
             finalStep = applyMultiStageRoute(finalStep, item.getRequiredQuantity(), bankTracker);
 
             steps.add(finalStep);
@@ -147,12 +120,6 @@ public final class GatheringRouteBuilder {
 
         return steps;
     }
-
-    /*
-     * =====================================================
-     * MULTI-STAGE ACQUISITION ROUTES
-     * =====================================================
-     */
 
     private static GatheringStep applyMultiStageRoute(
             GatheringStep step, int totalRequired, BankTracker bankTracker) {
@@ -168,21 +135,6 @@ public final class GatheringRouteBuilder {
 
         String itemName = safeText(step.getItemName());
 
-        /*
-         * =================================================
-         * BALL OF WOOL
-         * =================================================
-         *
-         * Stage 1:
-         * Shear enough sheep.
-         *
-         * Stage completion counts:
-         *
-         * Wool + already-finished balls of wool.
-         *
-         * Stage 2:
-         * Spin the remaining wool.
-         */
         if (itemName.equalsIgnoreCase("Ball of wool")) {
             int quantityRequired = Math.max(1, totalRequired);
 
@@ -215,35 +167,9 @@ public final class GatheringRouteBuilder {
             return exposeCurrentStage(staged, bankTracker);
         }
 
-        /*
-         * =================================================
-         * POT OF FLOUR
-         * =================================================
-         *
-         * Example:
-         *
-         * Need 3 flour.
-         * Own 1 flour.
-         *
-         * Remaining production = 2.
-         *
-         * Stage 1:
-         * Own 2 empty pots.
-         *
-         * Stage 2:
-         * Own 2 grain.
-         *
-         * Stage 3:
-         * Process the grain at Mill Lane Mill until the
-         * final required quantity of Pot of flour is owned.
-         */
         if (itemName.equalsIgnoreCase("Pot of flour")) {
             int finalQuantityRequired = Math.max(1, totalRequired);
 
-            /*
-             * This is the number of NEW pots of flour that
-             * still need to be produced right now.
-             */
             int productionQuantity = Math.max(1, step.getQuantityNeeded());
 
             int[] finalItemIds = step.getItemIds();
@@ -299,18 +225,6 @@ public final class GatheringRouteBuilder {
         return step;
     }
 
-    /*
-     * =====================================================
-     * CURRENT STAGE -> NORMAL ROUTE STEP
-     * =====================================================
-     *
-     * Most of the plugin was originally designed around one
-     * target per GatheringStep.
-     *
-     * Rather than rewrite the whole navigation system, the
-     * currently-active stage is exposed as the step's normal
-     * target and instruction.
-     */
     private static GatheringStep exposeCurrentStage(GatheringStep staged, BankTracker bankTracker) {
         if (staged == null) {
             return null;
@@ -353,12 +267,6 @@ public final class GatheringRouteBuilder {
                 staged.getStages());
     }
 
-    /*
-     * =====================================================
-     * ID HELPERS
-     * =====================================================
-     */
-
     private static int[] combineIds(int[] first, int[] second) {
         int firstLength = first == null ? 0 : first.length;
 
@@ -398,12 +306,6 @@ public final class GatheringRouteBuilder {
 
         return Arrays.copyOf(combined, index);
     }
-
-    /*
-     * =====================================================
-     * NEAREST-NEIGHBOUR ROUTE
-     * =====================================================
-     */
 
     private static List<GatheringStep> buildNearestRoute(
             List<GatheringStep> input, WorldPoint startPoint) {
@@ -470,12 +372,6 @@ public final class GatheringRouteBuilder {
         return best;
     }
 
-    /*
-     * =====================================================
-     * DISTANCE
-     * =====================================================
-     */
-
     private static long distanceScore(WorldPoint first, WorldPoint second) {
         if (first == null || second == null) {
             return Long.MAX_VALUE;
@@ -493,12 +389,6 @@ public final class GatheringRouteBuilder {
 
         return distance;
     }
-
-    /*
-     * =====================================================
-     * FALLBACK SORTING
-     * =====================================================
-     */
 
     private static Comparator<GatheringStep> baseComparator() {
         return new Comparator<GatheringStep>() {
@@ -529,12 +419,6 @@ public final class GatheringRouteBuilder {
         return String.CASE_INSENSITIVE_ORDER.compare(
                 safeText(first.getItemName()), safeText(second.getItemName()));
     }
-
-    /*
-     * =====================================================
-     * LOCATION NORMALISATION
-     * =====================================================
-     */
 
     private static String normaliseLocation(RequiredItem item, AcquisitionRegion region) {
         String location = item.getLocation();

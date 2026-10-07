@@ -14,34 +14,9 @@ public final class GatheringStep
     private final String instruction;
     private final AcquisitionInfo.MethodType methodType;
 
-    /*
-     * Existing single-target navigation.
-     *
-     * We keep this so everything we've already built
-     * continues working.
-     */
     private final GatheringTarget target;
 
-    /*
-     * Optional multi-stage acquisition route.
-     *
-     * Example:
-     *
-     * Ball of wool
-     *
-     * Stage 1:
-     * Shear sheep
-     *
-     * Stage 2:
-     * Spin wool
-     */
     private final List<GatheringStage> stages;
-
-    /*
-     * =====================================================
-     * STANDARD CONSTRUCTOR
-     * =====================================================
-     */
 
     public GatheringStep(
             AcquisitionRegion region,
@@ -65,12 +40,6 @@ public final class GatheringStep
         );
     }
 
-    /*
-     * =====================================================
-     * SINGLE-TARGET CONSTRUCTOR
-     * =====================================================
-     */
-
     public GatheringStep(
             AcquisitionRegion region,
             String location,
@@ -93,12 +62,6 @@ public final class GatheringStep
                 Collections.emptyList()
         );
     }
-
-    /*
-     * =====================================================
-     * FULL CONSTRUCTOR
-     * =====================================================
-     */
 
     public GatheringStep(
             AcquisitionRegion region,
@@ -180,12 +143,6 @@ public final class GatheringStep
         }
     }
 
-    /*
-     * =====================================================
-     * BASIC DATA
-     * =====================================================
-     */
-
     public AcquisitionRegion getRegion()
     {
         return region;
@@ -221,12 +178,6 @@ public final class GatheringStep
         return methodType;
     }
 
-    /*
-     * =====================================================
-     * NORMAL SINGLE TARGET
-     * =====================================================
-     */
-
     public GatheringTarget getTarget()
     {
         return target;
@@ -238,12 +189,6 @@ public final class GatheringStep
                 && target.isNavigable();
     }
 
-    /*
-     * =====================================================
-     * MULTI-STAGE ROUTE
-     * =====================================================
-     */
-
     public List<GatheringStage> getStages()
     {
         return stages;
@@ -254,10 +199,6 @@ public final class GatheringStep
         return !stages.isEmpty();
     }
 
-    /*
-     * Returns the first stage which has not yet been
-     * completed.
-     */
     public GatheringStage getCurrentStage(
             BankTracker bankTracker)
     {
@@ -268,11 +209,7 @@ public final class GatheringStep
 
         for (GatheringStage stage : stages)
         {
-            /*
-             * A stage without an inventory completion
-             * requirement cannot currently auto-complete,
-             * so treat it as the active stage.
-             */
+
             if (!stage.hasCompletionRequirement())
             {
                 return stage;
@@ -285,9 +222,6 @@ public final class GatheringStep
             }
         }
 
-        /*
-         * Every tracked stage is complete.
-         */
         return null;
     }
 
@@ -316,12 +250,6 @@ public final class GatheringStep
         return true;
     }
 
-    /*
-     * Gives future route code the destination for whatever
-     * stage the player should currently be doing.
-     *
-     * Non-multi-stage items simply use the old target.
-     */
     public GatheringTarget getCurrentTarget(
             BankTracker bankTracker)
     {
@@ -338,12 +266,6 @@ public final class GatheringStep
 
         return target;
     }
-
-    /*
-     * =====================================================
-     * COPY HELPERS
-     * =====================================================
-     */
 
     public GatheringStep withTarget(
             GatheringTarget newTarget)
