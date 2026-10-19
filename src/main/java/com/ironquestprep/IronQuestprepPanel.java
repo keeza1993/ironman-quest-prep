@@ -206,6 +206,11 @@ public class IronQuestprepPanel extends PluginPanel {
             content.add(unavailable);
         }
 
+        JButton clanDiscord = createModeButton("OSRS Geeza's Discord");
+        clanDiscord.setToolTipText("Join the OSRS Geeza's clan Discord");
+        clanDiscord.addActionListener(event -> SupportLinks.openClanDiscord());
+        content.add(Box.createVerticalStrut(8));
+        content.add(clanDiscord);
         content.add(itemList);
 
         add(content, BorderLayout.NORTH);
@@ -375,13 +380,16 @@ public class IronQuestprepPanel extends PluginPanel {
     }
 
     private void renderQuestSupplies() {
-        itemList.add(new JLabel("<html>Whole-quest prep supplies, refreshed at the bank.<br>Items used earlier may still appear. Quest-issued items are excluded.</html>"));
+        JLabel note = new JLabel("<html><div style='width:180px;'>Whole-quest prep supplies, refreshed at the bank.<br>Items used earlier may still appear. Quest-issued items are excluded.</div></html>");
+        note.setAlignmentX(Component.LEFT_ALIGNMENT);
+        itemList.add(note);
         JComboBox<Object> picker = new JComboBox<>();
         picker.addItem("All started quests");
         for (QuestItemDatabase.QuestSupplies supply : questSupplies) {
             picker.addItem(supply);
             if (supply.quest.name().equals(selectedQuest)) picker.setSelectedItem(supply);
         }
+        picker.setAlignmentX(Component.LEFT_ALIGNMENT);
         picker.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
         picker.setToolTipText("Choose any unfinished quest to prepare before starting it.");
         picker.addActionListener(event -> {
@@ -592,20 +600,17 @@ public class IronQuestprepPanel extends PluginPanel {
 
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        panel.setBorder(BorderFactory.createEmptyBorder(4, 18, 7, 0));
+        panel.setBorder(BorderFactory.createEmptyBorder(4, 0, 7, 0));
 
         JLabel title =
                 new JLabel(
-                        "<html><b>"
+                        "<html><div style='width:180px;'><b>"
                                 + stepNumber
                                 + ". "
                                 + escapeHtml(step.getItemName())
                                 + "</b> - Need "
                                 + step.getQuantityNeeded()
-                                + "</html>");
-
-        title.setIcon(new javax.swing.ImageIcon(QuestIcon.create()));
-        title.setIconTextGap(6);
+                                + "</div></html>");
 
         title.setForeground(Color.WHITE);
 
@@ -629,18 +634,18 @@ public class IronQuestprepPanel extends PluginPanel {
 
         method.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        method.setBorder(BorderFactory.createEmptyBorder(2, 12, 0, 0));
+        method.setBorder(BorderFactory.createEmptyBorder(2, 0, 0, 0));
 
         panel.add(method);
 
         if (step.getMethodType() != null) {
-            JLabel type = new JLabel("[" + step.getMethodType().getDisplayName() + "]");
+            JLabel type = new JLabel("<html><div style='width:180px;'>[" + escapeHtml(step.getMethodType().getDisplayName()) + "]</div></html>");
 
             type.setForeground(REGION_ORANGE);
 
             type.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-            type.setBorder(BorderFactory.createEmptyBorder(2, 12, 0, 0));
+            type.setBorder(BorderFactory.createEmptyBorder(2, 0, 0, 0));
 
             panel.add(type);
         }
@@ -653,33 +658,33 @@ public class IronQuestprepPanel extends PluginPanel {
 
         JLabel targetLabel =
                 new JLabel(
-                        "<html><b>Target:</b> " + escapeHtml(target.getDisplayText()) + "</html>");
+                        "<html><div style='width:180px;'><b>Target:</b> " + escapeHtml(target.getDisplayText()) + "</div></html>");
 
         targetLabel.setForeground(target.isNavigable() ? PINK : MUTED_GRAY);
 
         targetLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        targetLabel.setBorder(BorderFactory.createEmptyBorder(4, 12, 0, 0));
+        targetLabel.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0));
 
         panel.add(targetLabel);
 
         if (target.hasWorldPoint()) {
             JLabel coordinates =
                     new JLabel(
-                            "<html><b>Coordinates:</b> "
+                            "<html><div style='width:180px;'><b>Coordinates:</b> "
                                     + escapeHtml(target.getCoordinateText())
-                                    + "</html>");
+                                    + "</div></html>");
 
             coordinates.setForeground(MUTED_GRAY);
 
             coordinates.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-            coordinates.setBorder(BorderFactory.createEmptyBorder(2, 12, 0, 0));
+            coordinates.setBorder(BorderFactory.createEmptyBorder(2, 0, 0, 0));
 
             panel.add(coordinates);
         }
 
-        JLabel navigationStatus = new JLabel(escapeHtml(target.getNavigationStatus()));
+        JLabel navigationStatus = new JLabel("<html><div style='width:180px;'>" + escapeHtml(target.getNavigationStatus()) + "</div></html>");
 
         if (target.isNavigable()) {
             navigationStatus.setForeground(Color.GREEN);
@@ -691,12 +696,12 @@ public class IronQuestprepPanel extends PluginPanel {
 
         navigationStatus.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        navigationStatus.setBorder(BorderFactory.createEmptyBorder(2, 12, 0, 0));
+        navigationStatus.setBorder(BorderFactory.createEmptyBorder(2, 0, 0, 0));
 
         panel.add(navigationStatus);
 
         if (target.isNavigable()) {
-            JButton navigateButton = new JButton("Show destination on map");
+            JButton navigateButton = new JButton("Show on map");
 
             navigateButton.setForeground(PINK);
 
@@ -708,7 +713,7 @@ public class IronQuestprepPanel extends PluginPanel {
 
             navigateButton.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-            navigateButton.setBorder(BorderFactory.createEmptyBorder(4, 12, 2, 0));
+            navigateButton.setBorder(BorderFactory.createEmptyBorder(4, 0, 2, 0));
 
             navigateButton.addActionListener(event -> routeStepSelectionListener.accept(step));
 
@@ -847,13 +852,13 @@ public class IronQuestprepPanel extends PluginPanel {
             text = "☐ " + item.getName() + " (" + owned + "/" + needed + ") - Need " + missing;
         }
 
-        JLabel label = new JLabel(text);
+        JLabel label = new JLabel("<html><div style='width:180px;'>" + escapeHtml(text) + "</div></html>");
 
         label.setForeground(complete ? Color.GREEN : Color.WHITE);
 
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        label.setBorder(BorderFactory.createEmptyBorder(2, 18, 2, 0));
+        label.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0));
 
         label.setToolTipText(buildTooltip(item));
 

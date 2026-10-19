@@ -8,6 +8,13 @@ final class SupportLinks
     // Dedicated support invite supplied by the plugin owner.
     private static final String DISCORD_INVITE = "https://discord.gg/SzTtmUkv3";
 
+    private static final String CLAN_DISCORD_INVITE = "https://discord.gg/y7FebeHBK";
+
+    static void openClanDiscord()
+    {
+        LinkBrowser.browse(CLAN_DISCORD_INVITE);
+    }
+
     private SupportLinks() { }
 
     static boolean isAvailable()
