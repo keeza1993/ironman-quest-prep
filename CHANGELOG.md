@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.6 - shopping lists and item information
+
+- Visible info buttons on item rows expand acquisition details, including map guidance on shopping/route rows.
+- Separate shop-source requirements into a Shopping List, retaining area/location groups and map guidance.
+- Hide fully owned requirements from the checklist; keep partially collected quantities visible.
+- Refresh ownership, lists and route guidance after inventory changes, batched once per game tick using cached quest supplies.
+- Build and 66 automated tests passed. Owner approved the appearance in the development client; full gameplay edge cases remain unverified.
+
 ## 0.1.1 — performance update
 
 - Cache ground-item labels instead of scanning all requirements for every frame lookup.

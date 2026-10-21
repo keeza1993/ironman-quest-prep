@@ -45,6 +45,8 @@ public class IronQuestprepPanel extends PluginPanel {
     private final JButton skillsModeButton;
     private final JButton questsModeButton;
     private boolean questsMode;
+    private boolean shoppingMode;
+    private final JButton shoppingModeButton;
     private String selectedQuest;
     private List<QuestItemDatabase.QuestSupplies> questSupplies = java.util.Collections.emptyList();
 
@@ -108,16 +110,26 @@ public class IronQuestprepPanel extends PluginPanel {
 
         modePanel.setBorder(BorderFactory.createEmptyBorder(8, 0, 4, 0));
 
+        shoppingModeButton = createModeButton("Shopping List");
+        shoppingModeButton.addActionListener(event -> {
+            shoppingMode = true;
+            questsMode = false;
+            routeMode = false;
+            skillsMode = false;
+            updateModeButtons();
+            renderCurrentView();
+        });
         checklistModeButton = createModeButton("Checklist");
 
         routeModeButton = createModeButton("Gathering Route");
 
         checklistModeButton.addActionListener(
                 event -> {
-                    if (!routeMode && !skillsMode && !questsMode) {
+                    if (!routeMode && !skillsMode && !questsMode && !shoppingMode) {
                         return;
                     }
 
+                    shoppingMode = false;
                     questsMode = false;
                     routeMode = false;
                     skillsMode = false;
@@ -129,12 +141,13 @@ public class IronQuestprepPanel extends PluginPanel {
 
         routeModeButton.addActionListener(
                 event -> {
-                    if (routeMode && !skillsMode && !questsMode) {
+                    if (routeMode && !skillsMode && !questsMode && !shoppingMode) {
                         return;
                     }
 
                     questsMode = false;
                     routeMode = true;
+                    shoppingMode = false;
                     skillsMode = false;
 
                     updateModeButtons();
@@ -147,12 +160,15 @@ public class IronQuestprepPanel extends PluginPanel {
         modePanel.add(Box.createVerticalStrut(8));
 
         modePanel.add(routeModeButton);
+        modePanel.add(Box.createVerticalStrut(8));
+        modePanel.add(shoppingModeButton);
 
         skillsModeButton = createModeButton("Quest Cape Skills");
         skillsModeButton.addActionListener(
                 event -> {
                     questsMode = false;
                     skillsMode = true;
+                    shoppingMode = false;
                     updateModeButtons();
                     renderCurrentView();
                 });
@@ -160,6 +176,7 @@ public class IronQuestprepPanel extends PluginPanel {
         questsModeButton = createModeButton("Started Quest Supplies");
         questsModeButton.addActionListener(event -> {
             questsMode = true;
+            shoppingMode = false;
             skillsMode = false;
             routeMode = false;
             updateModeButtons();
@@ -245,10 +262,11 @@ public class IronQuestprepPanel extends PluginPanel {
     }
 
     private void updateModeButtons() {
-        styleModeButton(checklistModeButton, !routeMode && !skillsMode && !questsMode);
-        styleModeButton(routeModeButton, routeMode && !skillsMode && !questsMode);
+        styleModeButton(checklistModeButton, !routeMode && !skillsMode && !questsMode && !shoppingMode);
+        styleModeButton(routeModeButton, routeMode && !skillsMode && !questsMode && !shoppingMode);
         styleModeButton(skillsModeButton, skillsMode);
         styleModeButton(questsModeButton, questsMode);
+        styleModeButton(shoppingModeButton, shoppingMode);
     }
 
     public void resetForAccountChange() {
@@ -369,7 +387,10 @@ public class IronQuestprepPanel extends PluginPanel {
 
         questProgress.setText("Item types ready: " + obtained + " / " + sortedItems.size());
 
-        if (routeMode) {
+        sortedItems = PrepItemLists.missingForSection(sortedItems, currentBankTracker, shoppingMode);
+        if (sortedItems.isEmpty()) {
+            itemList.add(new JLabel(shoppingMode ? "No shop items left to buy." : "No gathering items missing."));
+        } else if (routeMode || shoppingMode) {
             renderGatheringRoute(sortedItems, currentBankTracker);
         } else {
             renderChecklist(sortedItems, currentBankTracker);
@@ -380,7 +401,7 @@ public class IronQuestprepPanel extends PluginPanel {
     }
 
     private void renderQuestSupplies() {
-        JLabel note = new JLabel("<html><div style='width:180px;'>Whole-quest prep supplies, refreshed at the bank.<br>Items used earlier may still appear. Quest-issued items are excluded.</div></html>");
+        JLabel note = new JLabel("<html><div style='width:180px;'>Whole-quest prep supplies; quest progress refreshed at the bank.<br>Collected items hide automatically. Items used earlier may still appear. Quest-issued items are excluded.</div></html>");
         note.setAlignmentX(Component.LEFT_ALIGNMENT);
         itemList.add(note);
         JComboBox<Object> picker = new JComboBox<>();
@@ -616,7 +637,7 @@ public class IronQuestprepPanel extends PluginPanel {
 
         title.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        panel.add(title);
+        // The title stays visible; acquisition details open through the info button.
 
         String instruction = step.getInstruction();
 
@@ -720,7 +741,7 @@ public class IronQuestprepPanel extends PluginPanel {
             panel.add(navigateButton);
         }
 
-        return panel;
+        return new ItemInfoRow(title, panel, step.getItemName());
     }
 
     private JPanel createRegionPanel() {
@@ -799,10 +820,8 @@ public class IronQuestprepPanel extends PluginPanel {
                 + " "
                 + getRegionName(region)
                 + "  ("
-                + ready
-                + "/"
                 + total
-                + ")";
+                + " missing)";
     }
 
     private String buildRouteRegionButtonText(
@@ -835,7 +854,7 @@ public class IronQuestprepPanel extends PluginPanel {
         return label;
     }
 
-    private JLabel createItemLabel(RequiredItem item, BankTracker bankTracker) {
+    private JPanel createItemLabel(RequiredItem item, BankTracker bankTracker) {
         int owned = item.getOwnedQuantity(bankTracker);
 
         int needed = item.getRequiredQuantity();
@@ -852,7 +871,7 @@ public class IronQuestprepPanel extends PluginPanel {
             text = "☐ " + item.getName() + " (" + owned + "/" + needed + ") - Need " + missing;
         }
 
-        JLabel label = new JLabel("<html><div style='width:180px;'>" + escapeHtml(text) + "</div></html>");
+        JLabel label = new JLabel("<html><div style='width:150px;'>" + escapeHtml(text) + "</div></html>");
 
         label.setForeground(complete ? Color.GREEN : Color.WHITE);
 
@@ -862,7 +881,10 @@ public class IronQuestprepPanel extends PluginPanel {
 
         label.setToolTipText(buildTooltip(item));
 
-        return label;
+        JLabel details = new JLabel(buildTooltip(item).replace("<html>", "<html><div style='width:170px;'>")
+                .replace("</html>", "</div></html>"));
+        details.setForeground(Color.LIGHT_GRAY);
+        return new ItemInfoRow(label, details, item.getName());
     }
 
     private int countReady(List<RequiredItem> items, BankTracker bankTracker) {

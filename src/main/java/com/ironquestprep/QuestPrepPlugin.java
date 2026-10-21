@@ -67,6 +67,8 @@ public class QuestPrepPlugin extends Plugin {
     private final QuestSkillPlanner.Cache skillPlanCache = new QuestSkillPlanner.Cache();
     private QuestSkillPlanner.Plan displayedPlan;
     private boolean ownershipDirty;
+    private boolean inventoryDirty;
+    private List<QuestItemDatabase.QuestSupplies> cachedSupplies = Collections.emptyList();
     private final SkillRefreshSchedule skillRefreshSchedule = new SkillRefreshSchedule();
 
     @Override
@@ -76,6 +78,8 @@ public class QuestPrepPlugin extends Plugin {
         skillPlanCache.clear();
         displayedPlan = null;
         ownershipDirty = false;
+        inventoryDirty = false;
+        cachedSupplies = Collections.emptyList();
         skillRefreshSchedule.reset();
 
         activeRequirements = Collections.emptyList();
@@ -146,6 +150,8 @@ public class QuestPrepPlugin extends Plugin {
             skillPlanCache.clear();
             displayedPlan = null;
             ownershipDirty = false;
+            inventoryDirty = false;
+            cachedSupplies = Collections.emptyList();
 
             activeRequirements = Collections.emptyList();
 
@@ -211,6 +217,7 @@ public class QuestPrepPlugin extends Plugin {
          */
         if (containerId == InventoryID.INV) {
             bankTracker.scanInventory(event.getItemContainer());
+            inventoryDirty = true;
 
             groundLabels.rebuild(activeRequirements, bankTracker);
         }
@@ -292,12 +299,22 @@ public class QuestPrepPlugin extends Plugin {
                 && bankTracker.hasScannedBank()
                 && client.getGameState() == GameState.LOGGED_IN) {
             refreshChecklist();
+        } else if (inventoryDirty && bankTracker.hasScannedBank()
+                && client.getGameState() == GameState.LOGGED_IN) {
+            refreshOwnership();
         }
     }
 
     private void refreshChecklist() {
         ownershipDirty = false;
         List<QuestItemDatabase.QuestSupplies> questSupplies = QuestItemDatabase.getQuestSupplies(client, bankTracker);
+        cachedSupplies = questSupplies;
+        refreshOwnership();
+    }
+
+    private void refreshOwnership() {
+        inventoryDirty = false;
+        List<QuestItemDatabase.QuestSupplies> questSupplies = cachedSupplies;
         List<RequiredItem> requirements = QuestItemDatabase.combineSupplies(questSupplies);
 
         activeRequirements = new ArrayList<>(requirements);
@@ -402,6 +419,8 @@ public class QuestPrepPlugin extends Plugin {
         ownershipDirty = false;
 
         activeRequirements = Collections.emptyList();
+        inventoryDirty = false;
+        cachedSupplies = Collections.emptyList();
 
         groundItemTileCounts.clear();
 
